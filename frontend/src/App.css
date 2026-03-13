@@ -1,0 +1,123 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.app {
+  width: 100%;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #111;
+}
+
+/* Header*/
+.main-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+}
+
+.main-topbar {
+  display: flex;
+  justify-content: center;
+  padding: 22px 16px;
+  border-bottom: 1px solid #ebebeb;
+}
+
+.main-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111;
+}
+
+.main-navrow {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid #ebebeb;
+  gap: 28px;
+}
+
+.main-avatar-wrap { cursor: pointer; }
+
+.main-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-nav {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.main-navlink {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #111;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  padding-bottom: 2px;
+}
+
+.main-navlink:hover { opacity: 0.5; }
+
+.main-navlink.active {
+  font-weight: 700;
+  border-bottom: 2px solid #111;
+}
+
+.main-logout {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #111;
+  cursor: pointer;
+}
+
+.main-logout:hover { background: #f4f4f4; }
+
+.auth-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.view-toggle {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  text-align: center;
+}
+
+.view-toggle p {
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.toggle-link {
+  background: none;
+  border: none;
+  color: #fff;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0;
+  margin-left: 5px;
+}
+
+.toggle-link:hover { color: #ddd; }

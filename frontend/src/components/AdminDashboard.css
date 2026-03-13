@@ -1,0 +1,185 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.db-root {
+  width: 100%;
+  min-height: 100vh;
+  background: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #111;
+}
+
+.db-section {
+  margin: 14px 16px;
+  background: #F9F9F9;
+  border-radius: 10px;
+  padding: 28px 20px;
+}
+
+.db-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.db-section-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 16px;
+  letter-spacing: 0.01em;
+}
+
+.db-section-header .db-section-label { margin-bottom: 0; }
+
+/* Media Cards */
+.db-card-area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.db-cards-row {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.db-cards-row::-webkit-scrollbar { display: none; }
+.db-media-card {
+  flex: 0 0 200px;
+  width: 200px;
+  height: 300px;
+  border-radius: 8px;
+  background: #e2e2e2;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.db-media-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.db-arrow-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #555;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.db-create-btn {
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 9px 16px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+.db-create-btn:hover { background: #333; }
+
+/* Clubs */
+.db-clubs-list { display: flex; flex-direction: column; gap: 10px; }
+
+.db-club-row {
+  background: #efefef;
+  border-radius: 7px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 56px;
+  gap: 12px;
+}
+
+.db-club-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+.db-club-name { font-size: 1rem; font-weight: 700; color: #111; }
+
+.db-club-desc { font-size: 0.85rem; color: #666; line-height: 1.4; }
+
+.db-club-type {
+  font-size: 0.78rem;
+  color: #888;
+  text-transform: capitalize;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.db-placeholder-row { min-height: 56px; }
+
+.db-next-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.db-next-link {
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #111;
+}
+.db-next-link:hover { opacity: 0.6; }
+
+/* Friends */
+.db-friends-area { min-height: 80px; }
+
+.db-hint { font-size: 0.88rem; color: #aaa; }
+
+/* Modal */
+.db-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.db-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 26px 22px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.db-modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 18px; }
+
+.db-modal-body { display: flex; flex-direction: column; gap: 10px; }
+
+.db-input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #fafafa;
+  outline: none;
+  resize: none;
+  color: #111;
+}
+.db-input:focus { border-color: #111; }
+
+.db-modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+.db-modal-cancel {
+  flex: 1; padding: 12px; border-radius: 7px;
+  border: 1px solid #ddd; background: #f0f0f0;
+  color: #555; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+
+.db-modal-confirm {
+  flex: 1; padding: 12px; border-radius: 7px;
+  border: none; background: #111; color: #fff;
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.db-modal-confirm:hover { background: #333; }
