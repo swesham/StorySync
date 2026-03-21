@@ -90,7 +90,6 @@ class ClubShelfItem(models.Model):
 
 
 class ClubPoll(models.Model):
-    """Admin creates a poll with two media options; closes at end_date."""
     club = models.ForeignKey(
         Club,
         on_delete=models.CASCADE,
@@ -102,12 +101,10 @@ class ClubPoll(models.Model):
         related_name="club_polls_created",
     )
     end_date = models.DateTimeField()
-    # Option 1 (admin can use title-only for "name" polls)
     option1_media_type = models.CharField(max_length=10, choices=ClubShelfItem.MediaType.choices, default="BOOK", blank=True)
     option1_media_id = models.CharField(max_length=100, blank=True, default="")
     option1_title = models.CharField(max_length=300)
     option1_image_url = models.URLField(blank=True)
-    # Option 2
     option2_media_type = models.CharField(max_length=10, choices=ClubShelfItem.MediaType.choices, default="BOOK", blank=True)
     option2_media_id = models.CharField(max_length=100, blank=True, default="")
     option2_title = models.CharField(max_length=300)
@@ -149,7 +146,6 @@ class PollVote(models.Model):
 
 
 class ClubPost(models.Model):
-    """Post on club discussion: media (from shelf) + caption. Admin creates/edits."""
     club = models.ForeignKey(
         Club,
         on_delete=models.CASCADE,
@@ -180,7 +176,6 @@ class ClubPost(models.Model):
 
 
 class ClubComment(models.Model):
-    """User comment on a club post (discussion)."""
     post = models.ForeignKey(
         ClubPost,
         on_delete=models.CASCADE,
@@ -216,6 +211,8 @@ class BookShelfItem(models.Model):
     title = models.CharField(max_length=300)
     authors = models.CharField(max_length=500, blank=True)
     thumbnail = models.URLField(blank=True)
+    isbn = models.CharField(max_length=20, blank=True)
+    genres = models.JSONField(default=list, blank=True)  # list of strings e.g. ["Fiction"]
 
     status = models.CharField(
         max_length=20,
@@ -223,6 +220,7 @@ class BookShelfItem(models.Model):
         default=ShelfStatus.WANT_TO_READ,
     )
     progress = models.PositiveIntegerField(default=0)  # 0-100
+    review = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -251,6 +249,7 @@ class MovieShelfItem(models.Model):
     overview = models.TextField(blank=True)
     poster_url = models.URLField(blank=True)
     release_year = models.PositiveIntegerField(null=True, blank=True)
+    genres = models.JSONField(default=list, blank=True)  # list of strings
 
     status = models.CharField(
         max_length=20,
@@ -258,6 +257,7 @@ class MovieShelfItem(models.Model):
         default=ShelfStatus.WANT_TO_WATCH,
     )
     progress = models.PositiveIntegerField(default=0)
+    review = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -285,6 +285,7 @@ class PodcastShelfItem(models.Model):
     title = models.CharField(max_length=300)
     publisher = models.CharField(max_length=300, blank=True)
     image = models.URLField(blank=True)
+    genres = models.JSONField(default=list, blank=True)  # list of strings
 
     status = models.CharField(
         max_length=20,
@@ -292,6 +293,7 @@ class PodcastShelfItem(models.Model):
         default=ShelfStatus.WANT_TO_LISTEN,
     )
     progress = models.PositiveIntegerField(default=0)
+    review = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -10,7 +10,10 @@ urlpatterns = [
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('profile/me/', views.MyProfileView.as_view(), name='my_profile'),
+    path('profile/me/friends/', views.MyFriendsListView.as_view(), name='my_friends'),
     path('profile/update/', views.UpdateProfileView.as_view(), name='update_profile'),
     path('profile/<int:pk>/', views.ProfileByIdView.as_view(), name='profile_by_id'),
+    path('profile/<int:pk>/friends/', views.UserFriendsListView.as_view(), name='user_friends'),
     path('profile/<int:pk>/add-friend/', views.AddFriendView.as_view(), name='add_friend'),
+    path('chat/<int:pk>/messages/', views.ChatMessageListAPI.as_view(), name='chat_messages'),
 ]

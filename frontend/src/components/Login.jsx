@@ -22,17 +22,21 @@ function Login({ onNavigate }) {
           password: formData.password,
         }),
       });
-      const data = await response.json().catch(() => ({}));
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      const isJson = contentType.includes('application/json');
+      const data = isJson ? (await response.json().catch(() => ({}))) : {};
       if (response.ok && (data.tokens?.access || data.access)) {
         localStorage.setItem('access_token', data.tokens?.access || data.access);
         localStorage.setItem('refresh_token', data.tokens?.refresh || data.refresh || '');
+        if (data.user?.username) localStorage.setItem('username', data.user.username);
         sessionStorage.setItem('from_login', 'true');
         const isAdmin = !!(data.user && (data.user.is_staff || data.user.is_superuser));
         sessionStorage.setItem('is_admin', isAdmin ? 'true' : 'false');
         alert('Login successful!');
         window.location.reload();
       } else {
-        alert(data.error || data.detail || 'Login failed');
+        const msg = data.error || data.detail || (response.ok ? 'Login failed' : `Error ${response.status}`);
+        alert(msg);
       }
     } catch (error) {
       console.error('Login error:', error);

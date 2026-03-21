@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .models import User, Friendship
+from .models import User, Friendship, ChatMessage
 from .serializers import (
     UserRegistrationSerializer,
     UserProfileSerializer,
     UserUpdateSerializer,
     PublicProfileSerializer,
+    FriendSerializer,
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -38,16 +39,21 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        username_or_email = (request.data.get('username_or_email') or '').strip()
-        password = request.data.get('password')
-        
+        try:
+            username_or_email = (request.data.get('username_or_email') or '').strip()
+            password = request.data.get('password')
+        except Exception:
+            return Response(
+                {'error': 'Invalid request body'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if not username_or_email or not password:
             return Response(
                 {'error': 'Please provide both username/email and password'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Find user by username (case-insensitive) or email (case-insensitive)
+
         user_obj = (
             User.objects.filter(username__iexact=username_or_email).first()
             or User.objects.filter(email__iexact=username_or_email).first()
@@ -63,17 +69,31 @@ class LoginView(APIView):
                 {'error': 'Invalid credentials'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
-        refresh = RefreshToken.for_user(user)
 
-        return Response({
-            'user': UserProfileSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
-            'message': 'Login successful'
-        }, status=status.HTTP_200_OK)
+        try:
+            refresh = RefreshToken.for_user(user)
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email or '',
+                'first_name': user.first_name or '',
+                'last_name': user.last_name or '',
+                'is_staff': getattr(user, 'is_staff', False),
+                'is_superuser': getattr(user, 'is_superuser', False),
+            }
+            return Response({
+                'user': user_data,
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
+                'message': 'Login successful'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'error': 'Login failed.', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -95,9 +115,9 @@ class LogoutView(APIView):
 
 class MyProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
 class UpdateProfileView(generics.UpdateAPIView):
@@ -117,7 +137,7 @@ def _are_friends(user_a, user_b):
 
 
 class ProfileByIdView(APIView):
-    """GET profile by user id. Returns public profile + is_self, is_friend."""
+    """Public profile by user id."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
@@ -125,14 +145,14 @@ class ProfileByIdView(APIView):
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-        data = PublicProfileSerializer(user).data
+        data = PublicProfileSerializer(user, context={'request': request}).data
         data["is_self"] = request.user.id == user.id
         data["is_friend"] = _are_friends(request.user, user)
         return Response(data)
 
 
 class AddFriendView(APIView):
-    """POST to add a user as friend (mutual friendship)."""
+    """Add a friend."""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -151,3 +171,63 @@ class AddFriendView(APIView):
             {"message": "Friend added." if created else "Already friends."},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class MyFriendsListView(APIView):
+    """Current user's friends."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        friend_ids = set()
+        for f in Friendship.objects.filter(user1=user).values_list("user2_id", flat=True):
+            friend_ids.add(f)
+        for f in Friendship.objects.filter(user2=user).values_list("user1_id", flat=True):
+            friend_ids.add(f)
+        friends = User.objects.filter(id__in=friend_ids).order_by("username")
+        return Response(FriendSerializer(friends, many=True).data)
+
+
+class UserFriendsListView(APIView):
+    """Friends of a user by id."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        friend_ids = set()
+        for f in Friendship.objects.filter(user1=user).values_list("user2_id", flat=True):
+            friend_ids.add(f)
+        for f in Friendship.objects.filter(user2=user).values_list("user1_id", flat=True):
+            friend_ids.add(f)
+        friends = User.objects.filter(id__in=friend_ids).order_by("username")
+        return Response(FriendSerializer(friends, many=True).data)
+
+
+class ChatMessageListAPI(APIView):
+    """Chat history with another user."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            other = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user
+        messages = ChatMessage.objects.filter(
+            sender__in=[user, other],
+            receiver__in=[user, other],
+        ).order_by("created_at").select_related("sender", "receiver")
+        data = [
+            {
+                "id": m.id,
+                "sender_id": m.sender_id,
+                "receiver_id": m.receiver_id,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ]
+        return Response(data)

@@ -412,7 +412,11 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
                   <div className="cd-poll-opt">
                     <img src={activePoll.option1_image_url} alt="" className="cd-poll-thumb" onError={(e) => e.target.style.display = 'none'} />
                     <span>{activePoll.option1_title}</span>
-                    <span className="cd-poll-votes">{activePoll.vote_count_1} votes</span>
+                    <span className="cd-poll-votes">
+                      {activePoll.is_closed
+                        ? `${activePoll.percentage_1 ?? 0}% (${activePoll.vote_count_1} votes)`
+                        : `${activePoll.vote_count_1} votes`}
+                    </span>
                     {!activePoll.is_closed && (
                       <button type="button" className="cd-vote-btn" onClick={() => handleVote(activePoll.id, 1)}>Vote</button>
                     )}
@@ -420,7 +424,11 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
                   <div className="cd-poll-opt">
                     <img src={activePoll.option2_image_url} alt="" className="cd-poll-thumb" onError={(e) => e.target.style.display = 'none'} />
                     <span>{activePoll.option2_title}</span>
-                    <span className="cd-poll-votes">{activePoll.vote_count_2} votes</span>
+                    <span className="cd-poll-votes">
+                      {activePoll.is_closed
+                        ? `${activePoll.percentage_2 ?? 0}% (${activePoll.vote_count_2} votes)`
+                        : `${activePoll.vote_count_2} votes`}
+                    </span>
                     {!activePoll.is_closed && (
                       <button type="button" className="cd-vote-btn" onClick={() => handleVote(activePoll.id, 2)}>Vote</button>
                     )}

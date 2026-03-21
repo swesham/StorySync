@@ -22,15 +22,50 @@
   text-align: center;
 }
 
+.profile-avatar-wrap {
+  margin-bottom: 1rem;
+}
+
 .profile-avatar {
   width: 80px;
   height: 80px;
-  margin: 0 auto 1rem;
+  margin: 0 auto 0.5rem;
   border-radius: 50%;
   background: #eee;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar-fallback {
+  flex-shrink: 0;
+}
+
+.profile-avatar-upload {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: #0066c0;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.profile-avatar-upload:hover {
+  text-decoration: underline;
+}
+
+.profile-avatar-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
 }
 
 .profile-name {
@@ -53,6 +88,10 @@
 
 .profile-friend-section {
   margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .profile-badge {
@@ -88,6 +127,34 @@
   cursor: not-allowed;
 }
 
+.profile-message-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.profile-message-btn:hover {
+  background: #333;
+}
+
+.profile-view-shelf {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.profile-view-shelf:hover {
+  background: #333;
+}
+
 .profile-back {
   display: block;
   margin: 1.5rem auto 0;
@@ -101,4 +168,84 @@
 
 .profile-back:hover {
   background: #f5f5f5;
+}
+
+.profile-bio-section {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+.profile-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #333;
+}
+
+.profile-bio-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.profile-bio {
+  font-size: 0.95rem;
+  color: #444;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.profile-save-bio {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.profile-save-bio:hover:not(:disabled) {
+  background: #333;
+}
+
+.profile-save-bio:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.profile-friends-list {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  text-align: left;
+}
+
+.profile-friends-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.profile-friends-empty {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.profile-friends-ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.profile-friends-ul li {
+  font-size: 0.95rem;
+  padding: 0.25rem 0;
 }

@@ -83,34 +83,62 @@
 .db-create-btn:hover { background: #333; }
 
 /* Clubs */
-.db-clubs-list { display: flex; flex-direction: column; gap: 10px; }
-
-.db-club-row {
-  background: #efefef;
-  border-radius: 7px;
-  padding: 16px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  min-height: 56px;
-  gap: 12px;
+.db-clubs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
-.db-club-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.db-club-card {
+  background: #efefef;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 420px;
+  min-height: 420px;
+  max-height: 420px;
+}
+
+.db-club-card-image {
+  width: 100%;
+  height: 300px;
+  min-height: 300px;
+  max-height:300px;
+  background: #e2e2e2;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.db-club-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.db-club-card-info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
 
 .db-club-name { font-size: 1rem; font-weight: 700; color: #111; }
 
-.db-club-desc { font-size: 0.85rem; color: #666; line-height: 1.4; }
+.db-club-desc { font-size: 0.85rem; color: #666; line-height: 1.4; margin: 0; }
 
-.db-club-type {
-  font-size: 0.78rem;
-  color: #888;
-  text-transform: capitalize;
-  white-space: nowrap;
-  padding-top: 2px;
+.db-club-card-btn {
+  margin: 0 12px 12px;
+  align-self: flex-start;
 }
 
-.db-placeholder-row { min-height: 56px; }
+.db-club-card-placeholder {
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+}
 
 .db-next-row {
   display: flex;
@@ -129,7 +157,74 @@
 /* Friends */
 .db-friends-area { min-height: 80px; }
 
+.db-friends-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.db-friends-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.db-friends-name {
+  font-size: 0.95rem;
+  color: #111;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.db-friends-name:hover {
+  opacity: 0.8;
+}
+
+.db-friends-msg-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.db-friends-msg-btn:hover {
+  background: #333;
+}
+
 .db-hint { font-size: 0.88rem; color: #aaa; }
+
+.db-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.db-stat-card {
+  background: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.db-stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.db-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111;
+}
 
 /* Modal */
 .db-modal-overlay {

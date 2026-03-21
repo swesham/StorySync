@@ -1,0 +1,7 @@
+# WebSocket (Django Channels)
+# Install: pip install -r requirements-websocket.txt
+# Run backend with WebSocket: ./run_server.sh  (or: python manage.py runserver 8000)
+# Redis optional: if running, channel layer uses Redis; else in-memory (single process).
+channels>=4.0.0
+channels-redis>=4.2.0
+daphne>=4.0.0

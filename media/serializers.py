@@ -16,6 +16,7 @@ from .models import (
 class ClubSerializer(serializers.ModelSerializer):
     created_by = serializers.CharField(source="created_by.username", read_only=True)
     current_user_role = serializers.SerializerMethodField()
+    cover_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Club
@@ -26,10 +27,20 @@ class ClubSerializer(serializers.ModelSerializer):
             "created_by",
             "is_private",
             "current_user_role",
+            "cover_image_url",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def get_cover_image_url(self, obj):
+        post = obj.posts.filter(image_url__isnull=False).exclude(image_url="").first()
+        if post and post.image_url:
+            return post.image_url
+        shelf = obj.shelf_items.filter(image_url__isnull=False).exclude(image_url="").first()
+        if shelf and shelf.image_url:
+            return shelf.image_url
+        return None
 
     def get_current_user_role(self, obj):
         request = self.context.get("request")
@@ -44,6 +55,8 @@ class ClubSerializer(serializers.ModelSerializer):
 
 
 class BookShelfItemSerializer(serializers.ModelSerializer):
+    amazon_url = serializers.SerializerMethodField()
+
     class Meta:
         model = BookShelfItem
         fields = [
@@ -52,12 +65,22 @@ class BookShelfItemSerializer(serializers.ModelSerializer):
             "title",
             "authors",
             "thumbnail",
+            "isbn",
+            "amazon_url",
+            "genres",
             "status",
             "progress",
+            "review",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_amazon_url(self, obj):
+        if not obj.isbn or not obj.isbn.strip():
+            return None
+        isbn = obj.isbn.strip().replace("-", "")
+        return f"https://www.amazon.com/s?k={isbn}"
 
 
 class MovieShelfItemSerializer(serializers.ModelSerializer):
@@ -70,8 +93,10 @@ class MovieShelfItemSerializer(serializers.ModelSerializer):
             "overview",
             "poster_url",
             "release_year",
+            "genres",
             "status",
             "progress",
+            "review",
             "created_at",
             "updated_at",
         ]
@@ -87,8 +112,10 @@ class PodcastShelfItemSerializer(serializers.ModelSerializer):
             "title",
             "publisher",
             "image",
+            "genres",
             "status",
             "progress",
+            "review",
             "created_at",
             "updated_at",
         ]
@@ -117,6 +144,8 @@ class ClubPollSerializer(serializers.ModelSerializer):
     is_closed = serializers.BooleanField(read_only=True)
     vote_count_1 = serializers.SerializerMethodField()
     vote_count_2 = serializers.SerializerMethodField()
+    percentage_1 = serializers.SerializerMethodField()
+    percentage_2 = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
 
     class Meta:
@@ -137,6 +166,8 @@ class ClubPollSerializer(serializers.ModelSerializer):
             "is_closed",
             "vote_count_1",
             "vote_count_2",
+            "percentage_1",
+            "percentage_2",
             "user_vote",
             "created_at",
         ]
@@ -155,6 +186,22 @@ class ClubPollSerializer(serializers.ModelSerializer):
 
     def get_vote_count_2(self, obj):
         return obj.votes.filter(choice=2).count()
+
+    def get_percentage_1(self, obj):
+        c1 = obj.votes.filter(choice=1).count()
+        c2 = obj.votes.filter(choice=2).count()
+        total = c1 + c2
+        if total == 0:
+            return 0
+        return round((c1 / total) * 100, 1)
+
+    def get_percentage_2(self, obj):
+        c1 = obj.votes.filter(choice=1).count()
+        c2 = obj.votes.filter(choice=2).count()
+        total = c1 + c2
+        if total == 0:
+            return 0
+        return round((c2 / total) * 100, 1)
 
     def get_user_vote(self, obj):
         request = self.context.get("request")

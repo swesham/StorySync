@@ -46,3 +46,24 @@ class Friendship(models.Model):
 
     def __str__(self):
         return f"{self.user1.username} & {self.user2.username}"
+
+
+class ChatMessage(models.Model):
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="chat_messages_sent",
+    )
+    receiver = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="chat_messages_received",
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.sender_id} -> {self.receiver_id}: {self.content[:20]}"

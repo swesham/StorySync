@@ -6,6 +6,8 @@ from rest_framework import status, permissions, generics, views
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+
+from users.models import Friendship
 from .services import GoogleBooksService, TMDbService, ListenNotesService
 from .models import (
     BookShelfItem,
@@ -33,10 +35,118 @@ from .serializers import (
 )
 
 
+def _friend_ids(user):
+    ids = set()
+    for pk in Friendship.objects.filter(user1=user).values_list("user2_id", flat=True):
+        ids.add(pk)
+    for pk in Friendship.objects.filter(user2=user).values_list("user1_id", flat=True):
+        ids.add(pk)
+    return ids
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def shelf_friend_reviews(request):
+    """Friend reviews for a shelf media item."""
+    media_type = (request.query_params.get("media_type") or "").strip().lower()
+    media_id = (request.query_params.get("media_id") or "").strip()
+    if not media_id or media_type not in ("book", "movie", "podcast"):
+        return Response(
+            {"error": "media_type (book|movie|podcast) and media_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    friend_ids = _friend_ids(request.user)
+    if not friend_ids:
+        return Response([])
+    results = []
+    if media_type == "book":
+        from .models import BookShelfItem
+        items = BookShelfItem.objects.filter(
+            user_id__in=friend_ids,
+            google_books_id=media_id,
+        ).exclude(review__isnull=True).exclude(review="").select_related("user")
+    elif media_type == "movie":
+        items = MovieShelfItem.objects.filter(
+            user_id__in=friend_ids,
+            tmdb_id=media_id,
+        ).exclude(review__isnull=True).exclude(review="").select_related("user")
+    else:
+        items = PodcastShelfItem.objects.filter(
+            user_id__in=friend_ids,
+            listen_notes_id=media_id,
+        ).exclude(review__isnull=True).exclude(review="").select_related("user")
+    for item in items:
+        u = item.user
+        display = f"{u.first_name or ''} {u.last_name or ''}".strip() or u.username
+        results.append({
+            "username": u.username,
+            "display_name": display,
+            "review": item.review,
+            "updated_at": item.updated_at.isoformat(),
+        })
+    return Response(results)
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def shelf_media_genre(request):
+    """Genres for a media id from external APIs."""
+    media_type = (request.query_params.get("media_type") or "").strip().lower()
+    media_id = (request.query_params.get("media_id") or "").strip()
+    if not media_id or media_type not in ("book", "movie", "podcast"):
+        return Response(
+            {"error": "media_type and media_id required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    genres = []
+    if media_type == "book":
+        data = GoogleBooksService().get_volume(media_id)
+        if data and isinstance(data, dict):
+            info = data.get("volumeInfo") or {}
+            cats = info.get("categories") or []
+            genres = [c for c in cats if isinstance(c, str) and c.strip()]
+    elif media_type == "movie":
+        data = TMDbService().get_movie_details(media_id)
+        if data and isinstance(data, dict):
+            id2name = TMDbService().get_genre_id_to_name()
+            ids = data.get("genre_ids") or [g.get("id") for g in (data.get("genres") or []) if g.get("id")]
+            genres = [id2name[i] for i in ids if i in id2name and id2name[i]]
+    return Response({"genres": genres})
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def shelf_stats(request):
+    """Most common genre per shelf type for the current user."""
+    user = request.user
+    def top_genre(queryset):
+        count = {}
+        for item in queryset:
+            genres = getattr(item, "genres", None) or []
+            if isinstance(genres, list):
+                for g in genres:
+                    if g:
+                        s = str(g).strip()
+                        if s:
+                            count[s] = count.get(s, 0) + 1
+        if not count:
+            return None
+        return max(count, key=count.get)
+
+    books = BookShelfItem.objects.filter(user=user)
+    movies = MovieShelfItem.objects.filter(user=user)
+    podcasts = PodcastShelfItem.objects.filter(user=user)
+    return Response({
+        "books": {"top_genre": top_genre(books)},
+        "movies": {"top_genre": top_genre(movies)},
+        "podcasts": {"top_genre": top_genre(podcasts)},
+    })
+
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def cloudinary_config(request):
-    """Return Cloudinary cloud_name and upload_preset for client-side unsigned uploads."""
+    """Cloudinary config for client uploads."""
     cloud_name = getattr(settings, 'CLOUDINARY_CLOUD_NAME', '') or ''
     upload_preset = getattr(settings, 'CLOUDINARY_UPLOAD_PRESET', '') or ''
     return Response({
@@ -258,6 +368,15 @@ class BookShelfListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user_id = self.request.query_params.get("user_id", "").strip()
+        if user_id.isdigit():
+            uid = int(user_id)
+            if uid != self.request.user.id:
+                queryset = BookShelfItem.objects.filter(user_id=uid)
+                status_param = self.request.query_params.get("status", "").strip().upper()
+                if status_param:
+                    queryset = queryset.filter(status=status_param)
+                return queryset
         queryset = BookShelfItem.objects.filter(user=self.request.user)
         status_param = self.request.query_params.get("status", "").strip().upper()
         if status_param:
@@ -281,6 +400,15 @@ class MovieShelfListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user_id = self.request.query_params.get("user_id", "").strip()
+        if user_id.isdigit():
+            uid = int(user_id)
+            if uid != self.request.user.id:
+                queryset = MovieShelfItem.objects.filter(user_id=uid)
+                status_param = self.request.query_params.get("status", "").strip().upper()
+                if status_param:
+                    queryset = queryset.filter(status=status_param)
+                return queryset
         queryset = MovieShelfItem.objects.filter(user=self.request.user)
         status_param = self.request.query_params.get("status", "").strip().upper()
         if status_param:
@@ -288,7 +416,13 @@ class MovieShelfListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        genre_ids = self.request.data.get("genre_ids")
+        if isinstance(genre_ids, list) and genre_ids:
+            id2name = TMDbService().get_genre_id_to_name()
+            genres = [id2name[g] for g in genre_ids if g in id2name]
+        else:
+            genres = serializer.validated_data.get("genres") or []
+        serializer.save(user=self.request.user, genres=genres)
 
 
 class MovieShelfDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -304,6 +438,15 @@ class PodcastShelfListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user_id = self.request.query_params.get("user_id", "").strip()
+        if user_id.isdigit():
+            uid = int(user_id)
+            if uid != self.request.user.id:
+                queryset = PodcastShelfItem.objects.filter(user_id=uid)
+                status_param = self.request.query_params.get("status", "").strip().upper()
+                if status_param:
+                    queryset = queryset.filter(status=status_param)
+                return queryset
         queryset = PodcastShelfItem.objects.filter(user=self.request.user)
         status_param = self.request.query_params.get("status", "").strip().upper()
         if status_param:

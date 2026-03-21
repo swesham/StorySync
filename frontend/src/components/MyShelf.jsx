@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import './MyShelf.css';
 
-function MyShelf({ onNavigate }) {
+function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
+  const isViewingOther = !!viewUserId;
   const [selectedMediaType, setSelectedMediaType] = useState('Books');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [shelfItems, setShelfItems] = useState([]);
@@ -10,6 +11,10 @@ function MyShelf({ onNavigate }) {
   const [currentItem, setCurrentItem] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showUsername, setShowUsername] = useState(false);
+  const [reviewText, setReviewText] = useState('');
+  const [postingReview, setPostingReview] = useState(false);
+  const [friendReviews, setFriendReviews] = useState([]);
+  const [apiGenres, setApiGenres] = useState([]);
 
   const API_BASE_URL = '/api/media';
 
@@ -36,6 +41,10 @@ function MyShelf({ onNavigate }) {
   const statusConfig = getStatusLabels();
 
   useEffect(() => {
+    if (isViewingOther && viewUserDisplayName) {
+      setUsername(viewUserDisplayName);
+      return;
+    }
     const fetchUserProfile = async () => {
       const token = localStorage.getItem('access_token');
       if (!token) return;
@@ -52,7 +61,7 @@ function MyShelf({ onNavigate }) {
       }
     };
     fetchUserProfile();
-  }, []);
+  }, [isViewingOther, viewUserDisplayName]);
 
   useEffect(() => {
     const fetchShelfItems = async () => {
@@ -66,9 +75,13 @@ function MyShelf({ onNavigate }) {
           ? `${API_BASE_URL}/shelf/movies/`
           : `${API_BASE_URL}/shelf/podcasts/`;
 
-        const url = selectedStatus && statusConfig.statusMap[selectedStatus]
+        let url = selectedStatus && statusConfig.statusMap[selectedStatus]
           ? `${endpoint}?status=${statusConfig.statusMap[selectedStatus]}`
           : endpoint;
+        if (isViewingOther && viewUserId) {
+          url += url.includes('?') ? '&' : '?';
+          url += `user_id=${viewUserId}`;
+        }
 
         const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (response.ok) {
@@ -87,7 +100,7 @@ function MyShelf({ onNavigate }) {
       }
     };
     fetchShelfItems();
-  }, [selectedMediaType, selectedStatus, refreshTrigger]);
+  }, [selectedMediaType, selectedStatus, refreshTrigger, isViewingOther, viewUserId]);
 
   useEffect(() => {
     const onShelfUpdate = () => refreshShelf();
@@ -100,6 +113,60 @@ function MyShelf({ onNavigate }) {
   }, []);
   useEffect(() => { refreshShelf(); }, []);
   useEffect(() => { setSelectedStatus(''); }, [selectedMediaType]);
+
+  useEffect(() => {
+    setReviewText(currentItem?.review ?? '');
+  }, [currentItem?.id, currentItem?.review]);
+
+  const getMediaTypeParam = () => {
+    if (selectedMediaType === 'Books') return 'book';
+    if (selectedMediaType === 'Movies') return 'movie';
+    return 'podcast';
+  };
+  const getMediaId = (item) => {
+    if (!item) return '';
+    if (selectedMediaType === 'Books') return item.google_books_id || '';
+    if (selectedMediaType === 'Movies') return item.tmdb_id || '';
+    return item.listen_notes_id || '';
+  };
+
+  useEffect(() => {
+    if (isViewingOther || !currentItem) {
+      setFriendReviews([]);
+      return;
+    }
+    const mediaId = getMediaId(currentItem);
+    if (!mediaId) {
+      setFriendReviews([]);
+      return;
+    }
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const url = `${API_BASE_URL}/shelf/friend-reviews/?media_type=${getMediaTypeParam()}&media_id=${encodeURIComponent(mediaId)}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setFriendReviews(Array.isArray(data) ? data : []))
+      .catch(() => setFriendReviews([]));
+  }, [currentItem?.id, currentItem, isViewingOther, selectedMediaType]);
+
+  useEffect(() => {
+    if (!currentItem) {
+      setApiGenres([]);
+      return;
+    }
+    const mediaId = getMediaId(currentItem);
+    if (!mediaId) {
+      setApiGenres([]);
+      return;
+    }
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const url = `${API_BASE_URL}/shelf/media-genre/?media_type=${getMediaTypeParam()}&media_id=${encodeURIComponent(mediaId)}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : {}))
+      .then((data) => setApiGenres(Array.isArray(data.genres) ? data.genres : []))
+      .catch(() => setApiGenres([]));
+  }, [currentItem?.id, currentItem, selectedMediaType]);
 
   const getThumbnail = (item) => {
     if (selectedMediaType === 'Books') return item.thumbnail || 'https://via.placeholder.com/150x200?text=No+Image';
@@ -117,7 +184,7 @@ function MyShelf({ onNavigate }) {
 
   const handleStatusChange = async (item, newStatus) => {
     const token = localStorage.getItem('access_token');
-    if (!token || !item?.id) return;
+    if (!token || !item?.id || isViewingOther) return;
     const base = getShelfEndpoint(selectedMediaType);
     try {
       const response = await fetch(`${base}${item.id}/`, {
@@ -133,14 +200,39 @@ function MyShelf({ onNavigate }) {
     }
   };
 
+  const handlePostReview = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token || !currentItem?.id || isViewingOther) return;
+    setPostingReview(true);
+    try {
+      const base = getShelfEndpoint(selectedMediaType);
+      const response = await fetch(`${base}${currentItem.id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ review: reviewText ?? '' }),
+      });
+      if (response.ok) {
+        refreshShelf();
+        setCurrentItem((prev) => (prev ? { ...prev, review: reviewText ?? '' } : null));
+      }
+    } catch (e) {
+      console.error('Failed to post review', e);
+    } finally {
+      setPostingReview(false);
+    }
+  };
+
   return (
     <div className="ms-root">
-      {/* Body */}
       <div className="ms-body">
 
-        {/* Left Sidebar */}
         <div className="ms-sidebar-left">
-          <div className="ms-user-label">{username}</div>
+          {isViewingOther && (
+            <button type="button" className="ms-back-btn" onClick={() => onNavigate()}>
+              ← Back
+            </button>
+          )}
+          <div className="ms-user-label">{isViewingOther ? `${username}'s shelf` : username}</div>
           <div className="ms-media-nav">
             {['Movies', 'Podcasts', 'Books'].map(type => (
               <button
@@ -154,7 +246,6 @@ function MyShelf({ onNavigate }) {
           </div>
         </div>
 
-        {/* Main */}
         <div className="ms-main">
           <div className="ms-status-tabs">
             {statusConfig.tabs.map(tab => (
@@ -166,12 +257,6 @@ function MyShelf({ onNavigate }) {
                 {tab}
               </button>
             ))}
-            <button
-            className={`ms-tab ${selectedStatus === 'Pending' ? 'active' : ''}`}
-            onClick={() => setSelectedStatus('Pending')}
-          >
-            Pending
-          </button>
           </div>
           
 
@@ -198,7 +283,6 @@ function MyShelf({ onNavigate }) {
           </div>
         </div>
 
-        {/* Right Sidebar */}
         <div className="ms-sidebar-right">
           <div className="ms-sync-label">SYNC</div>
 
@@ -222,15 +306,64 @@ function MyShelf({ onNavigate }) {
           {currentItem && (
             <div className="ms-metadata">
               <p className="ms-meta-title">{getTitle(currentItem)}</p>
-              <select
-                className="ms-status-select"
-                value={currentItem.status}
-                onChange={(e) => handleStatusChange(currentItem, e.target.value)}
-              >
-                {Object.entries(statusConfig.statusMap).map(([label, value]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
+              <p className="ms-meta-genre">
+                Genre: {apiGenres.length > 0
+                  ? apiGenres.join(', ')
+                  : (Array.isArray(currentItem.genres) && currentItem.genres.length > 0
+                    ? currentItem.genres.join(', ')
+                    : '—')}
+              </p>
+              {!isViewingOther && (
+                <select
+                  className="ms-status-select"
+                  value={currentItem.status}
+                  onChange={(e) => handleStatusChange(currentItem, e.target.value)}
+                >
+                  {Object.entries(statusConfig.statusMap).map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              )}
+              {selectedMediaType === 'Books' && (currentItem.amazon_url || currentItem.isbn) && (
+                <a href={currentItem.amazon_url || `https://www.amazon.com/s?k=${(currentItem.isbn || '').replace(/-/g, '')}`} target="_blank" rel="noopener noreferrer" className="ms-buy-amazon">
+                  Buy on Amazon (ISBN)
+                </a>
+              )}
+              {isViewingOther ? (
+                currentItem.review ? (
+                  <div className="ms-review-block">
+                    <span className="ms-review-label">Review</span>
+                    <p className="ms-review-text">{currentItem.review}</p>
+                  </div>
+                ) : null
+              ) : (
+                <>
+                  <div className="ms-review-block">
+                    <label className="ms-review-label">Leave a review</label>
+                    <textarea
+                      className="ms-review-input"
+                      value={reviewText}
+                      onChange={(e) => setReviewText(e.target.value)}
+                      placeholder="Write your review..."
+                      rows={3}
+                    />
+                    <button type="button" className="ms-review-post" onClick={handlePostReview} disabled={postingReview}>
+                      {postingReview ? 'Posting...' : 'Post'}
+                    </button>
+                  </div>
+                  {friendReviews.length > 0 && (
+                    <div className="ms-friend-reviews">
+                      <span className="ms-review-label">Friends&apos; reviews</span>
+                      {friendReviews.map((fr, idx) => (
+                        <div key={idx} className="ms-friend-review-item">
+                          <span className="ms-friend-review-author">{fr.display_name || fr.username}</span>
+                          <p className="ms-friend-review-text">{fr.review}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

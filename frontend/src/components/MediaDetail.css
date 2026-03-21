@@ -44,7 +44,7 @@
 }
 
 .close-btn:hover {
-  background-color: #B73C3C;
+  background-color: #000000;
   color: #FFFFFF;
 }
 
@@ -92,7 +92,7 @@
 
 .detail-genres {
   font-size: 14px;
-  color: #B73C3C;
+  color: #000000;
   font-weight: 500;
   margin: 0 0 20px 0;
 }
@@ -135,14 +135,14 @@
 
 .status-select:focus {
   outline: none;
-  border-color: #B73C3C;
+  border-color: #000000
 }
 
 .add-to-shelf-btn {
   padding: 10px 24px;
   border: none;
   border-radius: 8px;
-  background-color: #B73C3C;
+  background-color: #000000;
   color: #FFFFFF;
   font-size: 15px;
   font-weight: 600;
@@ -151,12 +151,24 @@
 }
 
 .add-to-shelf-btn:hover:not(:disabled) {
-  background-color: #992525;
+  background-color: #000000;
 }
 
 .add-to-shelf-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.detail-buy-amazon {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #0066c0;
+  text-decoration: none;
+}
+
+.detail-buy-amazon:hover {
+  text-decoration: underline;
 }
 
 /* Responsive */

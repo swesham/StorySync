@@ -57,7 +57,6 @@ function SearchFilter() {
   return (
     <div className="search-filter-container">
 
-      {/* Search Bar */}
       <div className="search-topbar">
         <div className="search-bar-container">
           <input
@@ -70,9 +69,8 @@ function SearchFilter() {
           />
           <button className="search-icon-btn" onClick={handleSearch}>Search</button>
         </div>
-      </div>    
+      </div>
 
-      {/* Filters */}
       <div className="filter-section">
         <div className="filter-buttons">
           {['all', 'book', 'movie', 'podcast'].map(type => (
@@ -92,7 +90,6 @@ function SearchFilter() {
         <button className="show-result-btn" onClick={handleSearch}>Show results</button>
       </div>
 
-      {/* Results */}
       <div className="results-section">
         {loading ? (
           <div className="loading-message">Searching...</div>

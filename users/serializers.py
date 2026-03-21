@@ -33,24 +33,55 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    
+    profile_picture_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'first_name', 'last_name', 
-            'bio', 'profile_picture', 'interests', 'created_at',
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'bio', 'profile_picture', 'profile_picture_url', 'interests', 'created_at',
             'is_staff', 'is_superuser'
         ]
         read_only_fields = ['id', 'username', 'created_at', 'is_staff', 'is_superuser']
 
+    def get_profile_picture_url(self, obj):
+        if not obj.profile_picture:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.profile_picture.url)
+        return obj.profile_picture.url
+
 
 class PublicProfileSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+    profile_picture_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'bio', 'profile_picture_url']
+        read_only_fields = fields
+
+    def get_display_name(self, obj):
+        if obj.first_name or obj.last_name:
+            return f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+        return obj.username
+
+    def get_profile_picture_url(self, obj):
+        if not obj.profile_picture:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.profile_picture.url)
+        return obj.profile_picture.url
+
+
+class FriendSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'display_name']
-        read_only_fields = fields
+        fields = ['id', 'username', 'display_name']
 
     def get_display_name(self, obj):
         if obj.first_name or obj.last_name:

@@ -1,25 +1,59 @@
 import { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 
-function AdminDashboard({ onNavigate, onOpenClubDiscussion }) {
+function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpenChat }) {
   const [showCreateClub, setShowCreateClub] = useState(false);
   const [clubs, setClubs] = useState([]);
   const [shelfItems, setShelfItems] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [shelfStats, setShelfStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [clubForm, setClubForm] = useState({ name: '', media_type: 'all', description: '' });
   const [showUsername, setShowUsername] = useState(false);
   const [username, setUsername] = useState('');
   const [shelfPage, setShelfPage] = useState(0);
   const [clubPage, setClubPage] = useState(0);
+  const [friendsPage, setFriendsPage] = useState(0);
 
   const SHELF_PAGE_SIZE = 6;
   const CLUB_PAGE_SIZE = 4;
+  const FRIENDS_PAGE_SIZE = 4;
 
   useEffect(() => {
     fetchClubs();
     fetchShelfItems();
+    fetchFriends();
+    fetchShelfStats();
     setUsername(localStorage.getItem('username') || 'User');
   }, []);
+
+  const fetchShelfStats = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/media/shelf-stats/', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setShelfStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shelf stats:', err);
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/profile/me/friends/', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch friends:', err);
+    }
+  };
 
   const fetchClubs = async () => {
     try {
@@ -96,9 +130,11 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion }) {
   const visibleClubs = clubs.slice(clubPage * CLUB_PAGE_SIZE, (clubPage + 1) * CLUB_PAGE_SIZE);
   const hasMoreClubs = (clubPage + 1) * CLUB_PAGE_SIZE < clubs.length;
 
+  const visibleFriends = friends.slice(friendsPage * FRIENDS_PAGE_SIZE, (friendsPage + 1) * FRIENDS_PAGE_SIZE);
+  const hasMoreFriends = (friendsPage + 1) * FRIENDS_PAGE_SIZE < friends.length;
+
   return (
     <div className="db-root">
-      {/* Continue Story */}
       <div className="db-section">
         <span className="db-section-label">Continue the story</span>
         <div className="db-card-area">
@@ -125,33 +161,31 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion }) {
         </div>
       </div>
 
-      {/* Clubs */}
       <div className="db-section">
         <div className="db-section-header">
           <span className="db-section-label">Clubs</span>
           <button className="db-create-btn" onClick={() => setShowCreateClub(true)}>Create Clubs</button>
         </div>
-        <div className="db-clubs-list">
+        <div className="db-clubs-grid">
           {loading ? (
             <p className="db-hint">Loading...</p>
           ) : visibleClubs.length > 0 ? (
             visibleClubs.map((club) => (
-              <div key={club.id} className="db-club-row">
-                <div className="db-club-info">
-                  <span
-                    className="db-club-name"
-                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                    onClick={() => onOpenClubDiscussion?.(club.id)}
-                  >
-                    {club.name}
-                  </span>
-                  {club.description && <p className="db-club-desc">{club.description}</p>}
+              <div key={club.id} className="db-club-card">
+                <div className="db-club-card-image">
+                  {club.cover_image_url ? (
+                    <img src={club.cover_image_url} alt="" className="db-club-card-img" onError={(e) => { e.target.style.display = 'none'; }} />
+                  ) : null}
                 </div>
-                <button type="button" className="db-join-btn" onClick={() => onOpenClubDiscussion?.(club.id)}>Discussion</button>
+                <div className="db-club-card-info">
+                  <span className="db-club-name">{club.name}</span>
+                  {club.description ? <p className="db-club-desc">{club.description}</p> : null}
+                </div>
+                <button type="button" className="db-join-btn db-club-card-btn" onClick={() => onOpenClubDiscussion?.(club.id)}>Discuss</button>
               </div>
             ))
           ) : (
-            [0, 1, 2, 3].map(i => <div key={i} className="db-club-row db-placeholder-row" />)
+            [0, 1, 2, 3].map(i => <div key={i} className="db-club-card db-club-card-placeholder" />)
           )}
         </div>
         {(hasMoreClubs || clubPage > 0) && (
@@ -166,13 +200,53 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion }) {
         )}
       </div>
 
-      {/* Friends */}
       <div className="db-section">
         <span className="db-section-label">Friends</span>
-        <div className="db-friends-area" />
+        <div className="db-friends-area">
+          {visibleFriends.length === 0 ? (
+            <p className="db-hint">No friends yet.</p>
+          ) : (
+            <>
+              <ul className="db-friends-list">
+                {visibleFriends.map((f) => (
+                  <li key={f.id} className="db-friends-item">
+                    <span className="db-friends-name" onClick={() => onOpenProfile?.(f.id)}>{f.display_name || f.username}</span>
+                    {onOpenChat && <button type="button" className="db-friends-msg-btn" onClick={() => onOpenChat(f.id, f.display_name || f.username)}>Message</button>}
+                  </li>
+                ))}
+              </ul>
+              {(hasMoreFriends || friendsPage > 0) && (
+                <div className="db-next-row">
+                  {friendsPage > 0 && <span className="db-next-link" onClick={() => setFriendsPage(p => p - 1)}>‹ Prev</span>}
+                  {hasMoreFriends && <span className="db-next-link" onClick={() => setFriendsPage(p => p + 1)}>Next ›</span>}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Modal */}
+      {shelfStats && (
+        <div className="db-section">
+          <span className="db-section-label">Shelf analytics</span>
+          <p className="db-hint">Most shelved genre (genre that appears most on your shelf)</p>
+          <div className="db-stats-grid">
+            <div className="db-stat-card">
+              <span className="db-stat-label">Books</span>
+              <span className="db-stat-value">{shelfStats.books?.top_genre || '—'}</span>
+            </div>
+            <div className="db-stat-card">
+              <span className="db-stat-label">Movies</span>
+              <span className="db-stat-value">{shelfStats.movies?.top_genre || '—'}</span>
+            </div>
+            <div className="db-stat-card">
+              <span className="db-stat-label">Podcasts</span>
+              <span className="db-stat-value">{shelfStats.podcasts?.top_genre || '—'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCreateClub && (
         <div className="db-modal-overlay" onClick={() => setShowCreateClub(false)}>
           <div className="db-modal" onClick={e => e.stopPropagation()}>

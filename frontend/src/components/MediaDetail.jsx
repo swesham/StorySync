@@ -21,6 +21,9 @@ function MediaDetail({ item, onClose }) {
   const getDetails = () => {
     if (item.type === 'book') {
       const info = item.data?.volumeInfo || {};
+      const identifiers = info.industryIdentifiers || [];
+      const isbnObj = identifiers.find((i) => i.type === 'ISBN_13') || identifiers.find((i) => i.type === 'ISBN_10');
+      const isbn = isbnObj ? (isbnObj.identifier || '').trim() : '';
       return {
         title: info.title || 'Unknown Title',
         authors: info.authors?.join(', ') || 'Unknown Author',
@@ -30,6 +33,7 @@ function MediaDetail({ item, onClose }) {
         categories: info.categories || [],
         pageCount: info.pageCount || 0,
         mediaId: item.data?.id || '',
+        isbn: isbn,
       };
     } else if (item.type === 'movie') {
       const movieData = item.data || {};
@@ -95,6 +99,8 @@ function MediaDetail({ item, onClose }) {
         title: details.title,
         authors: details.authors,
         thumbnail: details.thumbnail,
+        isbn: details.isbn || '',
+        genres: Array.isArray(details.categories) ? details.categories : [],
         status: shelfStatus,
         progress: 0,
       };
@@ -103,12 +109,14 @@ function MediaDetail({ item, onClose }) {
         ? parseInt(details.publishedDate.substring(0, 4))
         : null;
       
+      const genreIds = Array.isArray(details.categories) ? details.categories : [];
       return {
         tmdb_id: details.mediaId || '',
         title: details.title || '',
         overview: details.description || '',
         poster_url: details.thumbnail || '',
         release_year: releaseYear,
+        genre_ids: genreIds,
         status: shelfStatus,
         progress: 0,
       };
@@ -118,6 +126,7 @@ function MediaDetail({ item, onClose }) {
         title: details.title || '',
         publisher: details.authors || '',
         image: details.thumbnail || '',
+        genres: [],
         status: shelfStatus,
         progress: 0,
       };
@@ -311,6 +320,17 @@ function MediaDetail({ item, onClose }) {
                 {addingToShelf ? 'Adding...' : 'Add to My Shelf'}
               </button>
             </div>
+
+            {item.type === 'book' && details.isbn && (
+              <a
+                href={`https://www.amazon.com/s?k=${details.isbn.replace(/-/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="detail-buy-amazon"
+              >
+                Buy on Amazon
+              </a>
+            )}
           </div>
         </div>
       </div>
