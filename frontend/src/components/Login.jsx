@@ -1,18 +1,25 @@
 import { useState } from 'react';
 import './Login.css';
+import '../inline-message.css';
 
 function Login({ onNavigate }) {
   const [formData, setFormData] = useState({
     username_or_email: '',
     password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [formMessage, setFormMessage] = useState('');
 
   const handleChange = (e) => {
+    setFormMessage('');
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormMessage('');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     try {
       const response = await fetch('/api/auth/login/', {
         method: 'POST',
@@ -32,15 +39,14 @@ function Login({ onNavigate }) {
         sessionStorage.setItem('from_login', 'true');
         const isAdmin = !!(data.user && (data.user.is_staff || data.user.is_superuser));
         sessionStorage.setItem('is_admin', isAdmin ? 'true' : 'false');
-        alert('Login successful!');
         window.location.reload();
       } else {
-        const msg = data.error || data.detail || (response.ok ? 'Login failed' : `Error ${response.status}`);
-        alert(msg);
+        const msg = data.error || data.detail || (response.ok ? 'Login failed' : `Could not sign in (${response.status}).`);
+        setFormMessage(msg);
       }
     } catch (error) {
       console.error('Login error:', error);
-      alert('Cannot reach server. Make sure Django is running.');
+      setFormMessage('Cannot reach server. Make sure Django is running.');
     }
   };
 
@@ -60,17 +66,23 @@ function Login({ onNavigate }) {
             className="auth-input"
             required
           />
-          <input
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            className="auth-input"
-            required
-          />
+          <div className="password-wrap">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              autoComplete="current-password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              className="auth-input"
+              required
+            />
+            <button type="button" className="password-toggle" onClick={() => setShowPassword(v => !v)}>
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
           <button type="submit" className="auth-button">Login</button>
+          {formMessage ? <p className="inline-form-msg">{formMessage}</p> : null}
         </form>
       </div>
     </div>

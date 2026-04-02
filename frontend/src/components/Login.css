@@ -92,3 +92,29 @@
 .auth-button:active {
   transform: scale(0.98);
 }
+
+.password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrap .auth-input {
+  width: 100%;
+  padding-right: 60px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  padding: 0;
+}
+
+.password-toggle:hover { color: #111; }

@@ -94,3 +94,121 @@
 .auth-button:active {
   transform: scale(0.98);
 }
+
+.auth-card-wide {
+  max-width: 520px;
+}
+
+.signup-complete-title {
+  color: #000;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.signup-genre-subtitle {
+  color: #333;
+  font-size: 1rem;
+  text-align: center;
+  margin: 0 0 24px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.signup-genre-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.signup-genre-btn {
+  padding: 14px 8px;
+  background: #000;
+  color: #fff;
+  border: 2px solid #000;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.signup-genre-btn:hover {
+  background: #222;
+  border-color: #222;
+}
+
+.signup-genre-btn.selected {
+  background: #fff;
+  color: #000;
+  border-color: #000;
+}
+
+.password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrap .auth-input {
+  width: 100%;
+  padding-right: 60px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  padding: 0;
+}
+
+.password-toggle:hover { color: #111; }
+
+
+.signup-genre-next {
+  margin-top: 4px;
+}
+
+.edit-prefs-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.edit-prefs-save {
+  margin-top: 0;
+}
+
+.edit-prefs-cancel {
+  background-color: #e8e8e8;
+  color: #222;
+}
+
+.edit-prefs-cancel:hover:not(:disabled) {
+  background-color: #ddd;
+}
+
+.auth-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.password-mismatch {
+  color: #000000;
+  font-size: 0.82rem;
+  margin-top: -10px;
+}
+
+@media (max-width: 520px) {
+  .signup-genre-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
