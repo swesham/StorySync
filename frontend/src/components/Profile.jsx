@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import './Profile.css';
+import '../inline-message.css';
 
 const API = '/api';
 
-function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
+function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf, onEditPreferences }) {
   // profileUserId null = current user's profile, number = that user's profile
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,6 +14,10 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
   const [bioEdit, setBioEdit] = useState('');
   const [savingBio, setSavingBio] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [bioMessage, setBioMessage] = useState('');
+  const [photoMessage, setPhotoMessage] = useState('');
+  const [friendMessage, setFriendMessage] = useState('');
+  const [deleteMessage, setDeleteMessage] = useState('');
 
   const token = () => localStorage.getItem('access_token');
   const auth = () => ({ Authorization: `Bearer ${token()}` });
@@ -37,7 +42,7 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
               id: data.id,
               username: data.username,
               email: data.email || '',
-              display_name: data.display_name || data.username,
+              display_name: [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username,
               bio: data.bio || '',
               profile_picture_url: data.profile_picture_url || null,
               is_self: data.is_self,
@@ -79,6 +84,7 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
 
   const handleSaveBio = async () => {
     if (!profile?.is_self || savingBio) return;
+    setBioMessage('');
     setSavingBio(true);
     try {
       const res = await fetch(`${API}/profile/update/`, {
@@ -89,7 +95,7 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
       if (!res.ok) throw new Error('Failed to save');
       setProfile((p) => (p ? { ...p, bio: bioEdit } : p));
     } catch (e) {
-      alert(e.message);
+      setBioMessage(e.message || 'Failed to save');
     } finally {
       setSavingBio(false);
     }
@@ -98,6 +104,7 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
   const handleProfilePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !profile?.is_self || uploadingPhoto) return;
+    setPhotoMessage('');
     setUploadingPhoto(true);
     try {
       const formData = new FormData();
@@ -114,7 +121,7 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
         setProfile((p) => (p ? { ...p, profile_picture_url: data.profile_picture_url || null } : p));
       }
     } catch (err) {
-      alert(err.message || 'Failed to upload photo');
+      setPhotoMessage(err.message || 'Failed to upload photo');
     } finally {
       setUploadingPhoto(false);
       e.target.value = '';
@@ -123,6 +130,7 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
 
   const handleAddFriend = async () => {
     if (!profile || profile.is_self || profile.is_friend || addingFriend) return;
+    setFriendMessage('');
     setAddingFriend(true);
     try {
       const res = await fetch(`${API}/profile/${profile.id}/add-friend/`, {
@@ -135,9 +143,27 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
       }
       setProfile((p) => ({ ...p, is_friend: true }));
     } catch (e) {
-      alert(e.message);
+      setFriendMessage(e.message || 'Failed to add friend');
     } finally {
       setAddingFriend(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm('Are you sure you want to delete your account?');
+    if (!confirmed) return;
+    setDeleteMessage('');
+    try {
+      const res = await fetch(`${API}/profile/delete/`, {
+        method: 'DELETE',
+        headers: auth(),
+      });
+      if (!res.ok) throw new Error('Failed to delete account');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.reload();
+    } catch (e) {
+      setDeleteMessage(e.message || 'Failed to delete account');
     }
   };
 
@@ -158,10 +184,13 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
             </svg>
           </div>
           {profile.is_self && (
-            <label className="profile-avatar-upload">
-              <input type="file" accept="image/*" onChange={handleProfilePhotoChange} disabled={uploadingPhoto} className="profile-avatar-input" />
-              {uploadingPhoto ? 'Uploading...' : 'Upload photo'}
-            </label>
+            <>
+              <label className="profile-avatar-upload">
+                <input type="file" accept="image/*" onChange={handleProfilePhotoChange} disabled={uploadingPhoto} className="profile-avatar-input" />
+                {uploadingPhoto ? 'Uploading...' : 'Upload photo'}
+              </label>
+              {photoMessage ? <p className="inline-form-msg">{photoMessage}</p> : null}
+            </>
           )}
         </div>
         <h1 className="profile-name">{profile.display_name || profile.username}</h1>
@@ -175,13 +204,25 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
               <textarea
                 className="profile-bio-input"
                 value={bioEdit}
-                onChange={(e) => setBioEdit(e.target.value)}
+                onChange={(e) => { setBioEdit(e.target.value); setBioMessage(''); }}
                 placeholder="Write something about yourself..."
                 rows={3}
               />
               <button type="button" className="profile-save-bio" onClick={handleSaveBio} disabled={savingBio}>
                 {savingBio ? 'Saving...' : 'Save bio'}
               </button>
+              {bioMessage ? <p className="inline-form-msg">{bioMessage}</p> : null}
+              <br></br>
+              <button type="button" className="profile-delete-btn" onClick={handleDeleteAccount}>
+                Delete Account
+              </button>
+              {deleteMessage ? <p className="inline-form-msg">{deleteMessage}</p> : null}
+              <br></br>
+              {onEditPreferences && (
+                <button type="button" className="profile-edit-prefs-btn" onClick={onEditPreferences}>
+                  Edit Preferences
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -190,14 +231,17 @@ function Profile({ profileUserId, onNavigate, onOpenChat, onViewShelf }) {
                 {profile.is_friend ? (
                   <p className="profile-badge profile-friends">Friends</p>
                 ) : (
-                  <button
-                    type="button"
-                    className="profile-add-friend"
-                    onClick={handleAddFriend}
-                    disabled={addingFriend}
-                  >
-                    {addingFriend ? 'Adding...' : 'Add friend'}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="profile-add-friend"
+                      onClick={handleAddFriend}
+                      disabled={addingFriend}
+                    >
+                      {addingFriend ? 'Adding...' : 'Add friend'}
+                    </button>
+                    {friendMessage ? <p className="inline-form-msg">{friendMessage}</p> : null}
+                  </>
                 )}
                 {onOpenChat && (
                   <button type="button" className="profile-message-btn" onClick={() => onOpenChat(profile.id, profile.display_name || profile.username)}>
