@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './ClubDiscussion.css';
+import '../inline-message.css';
 
 const API = '/api/media';
 
@@ -20,7 +21,7 @@ function safeJson(res) {
   });
 }
 
-function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToView }) {
+function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, isAppAdmin, backToView }) {
   const [club, setClub] = useState(null);
   const [posts, setPosts] = useState([]);
   const [polls, setPolls] = useState([]);
@@ -40,6 +41,9 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
     end_date: '',
   });
   const [commentText, setCommentText] = useState('');
+  const [pageMessage, setPageMessage] = useState('');
+  const [postModalMessage, setPostModalMessage] = useState('');
+  const [pollModalMessage, setPollModalMessage] = useState('');
 
   const token = () => localStorage.getItem('access_token');
   const auth = () => ({ Authorization: `Bearer ${token()}` });
@@ -138,9 +142,10 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
 
   const uploadImageToCloudinary = async (file) => {
     if (!cloudinaryConfig?.cloud_name || !cloudinaryConfig?.upload_preset) {
-      alert('Image upload not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET in your Django .env');
+      setPostModalMessage('Image upload not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET in your Django .env');
       return;
     }
+    setPostModalMessage('');
     setPostImageUploading(true);
     try {
       const formData = new FormData();
@@ -158,7 +163,7 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const url = data.secure_url;
       if (url) setPostForm((f) => ({ ...f, image_url: url }));
     } catch (e) {
-      alert(e.message || 'Image upload failed');
+      setPostModalMessage(e.message || 'Image upload failed');
     } finally {
       setPostImageUploading(false);
     }
@@ -166,6 +171,7 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
+    setPostModalMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/posts/`, {
         method: 'POST',
@@ -179,16 +185,18 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
         const err = await safeJson(res).catch(() => ({}));
         throw new Error(err.caption?.[0] || err.detail || 'Failed to create post');
       }
+      setPostModalMessage('');
       setShowAddPost(false);
       setPostForm({ caption: '', image_url: '' });
       const postsData = await fetchPosts();
       setPosts(postsData);
     } catch (e) {
-      alert(e.message);
+      setPostModalMessage(e.message || 'Failed to create post');
     }
   };
 
   const handleUpdatePost = async (postId, caption, shelfItemId) => {
+    setPageMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/posts/${postId}/`, {
         method: 'PATCH',
@@ -202,12 +210,13 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const postsData = await fetchPosts();
       setPosts(postsData);
     } catch (e) {
-      alert(e.message);
+      setPageMessage(e.message || 'Failed to update post');
     }
   };
 
   const handleDeletePost = async (postId) => {
     if (!confirm('Delete this post?')) return;
+    setPageMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/posts/${postId}/`, {
         method: 'DELETE',
@@ -218,7 +227,7 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       setPosts(postsData);
       setComments([]);
     } catch (e) {
-      alert(e.message);
+      setPageMessage(e.message || 'Failed to delete post');
     }
   };
 
@@ -227,9 +236,10 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
     const t1 = (pollForm.option1_title || '').trim();
     const t2 = (pollForm.option2_title || '').trim();
     if (!t1 || !t2 || !pollForm.end_date) {
-      alert('Enter names for both options and set an end date.');
+      setPollModalMessage('Enter names for both options and set an end date.');
       return;
     }
+    setPollModalMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/polls/`, {
         method: 'POST',
@@ -249,11 +259,12 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const pollsData = await fetchPolls();
       setPolls(pollsData);
     } catch (e) {
-      alert(e.message);
+      setPollModalMessage(e.message || 'Failed to create poll');
     }
   };
 
   const handleVote = async (pollId, choice) => {
+    setPageMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/polls/${pollId}/vote/`, {
         method: 'POST',
@@ -267,7 +278,7 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const pollsData = await fetchPolls();
       setPolls(Array.isArray(pollsData) ? pollsData : []);
     } catch (e) {
-      alert(e.message);
+      setPageMessage(e.message || 'Failed to vote');
     }
   };
 
@@ -278,9 +289,10 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
     const winner = c1 >= c2 ? 1 : 2;
     const mediaId = winner === 1 ? activePoll.option1_media_id : activePoll.option2_media_id;
     if (!mediaId) {
-      alert('This poll was created with names only; winning media cannot be added to shelf.');
+      setPageMessage('This poll was created with names only; winning media cannot be added to shelf.');
       return;
     }
+    setPageMessage('');
     const mediaType = winner === 1 ? activePoll.option1_media_type : activePoll.option2_media_type;
     const title = winner === 1 ? activePoll.option1_title : activePoll.option2_title;
     const imageUrl = winner === 1 ? activePoll.option1_image_url : activePoll.option2_image_url;
@@ -302,13 +314,14 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const shelfData = await fetchShelf();
       setShelf(shelfData);
     } catch (e) {
-      alert(e.message);
+      setPageMessage(e.message || 'Failed to add to shelf');
     }
   };
 
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim() || !mainPostId) return;
+    setPageMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/posts/${mainPostId}/comments/`, {
         method: 'POST',
@@ -320,12 +333,13 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const commentsData = await fetchComments(mainPostId);
       setComments(commentsData);
     } catch (e) {
-      alert(e.message);
+      setPageMessage(e.message || 'Failed to add comment');
     }
   };
 
   const handleDeleteComment = async (commentId) => {
     if (!confirm('Delete this comment?')) return;
+    setPageMessage('');
     try {
       const res = await fetch(
         `${API}/clubs/${clubId}/posts/${mainPostId}/comments/${commentId}/`,
@@ -335,7 +349,22 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
       const commentsData = await fetchComments(mainPostId);
       setComments(commentsData);
     } catch (e) {
-      alert(e.message);
+      setPageMessage(e.message || 'Failed to delete comment');
+    }
+  };
+
+  const handleDeleteClub = async () => {
+    if (!confirm('Delete this club and everything in it (posts, polls, shelf, comments)? This cannot be undone.')) return;
+    setPageMessage('');
+    try {
+      const res = await fetch(`${API}/clubs/${clubId}/`, { method: 'DELETE', headers: auth() });
+      if (!res.ok) {
+        const err = await safeJson(res).catch(() => ({}));
+        throw new Error(err.detail || err.error || 'Failed to delete club');
+      }
+      onNavigate(backToView || 'userdashboard');
+    } catch (e) {
+      setPageMessage(e.message || 'Failed to delete club');
     }
   };
 
@@ -379,20 +408,31 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
               <div className="cd-media-placeholder">No media</div>
             )}
           </div>
-          {isClubAdmin && (
-            <div className="cd-actions">
-              <button type="button" className="cd-btn cd-btn-add" onClick={() => setShowAddPost(true)}>Add Post</button>
-              {mainPost && (
-                <>
-                  <button type="button" className="cd-link" onClick={() => {
-                    const c = prompt('Caption', mainPost.caption);
-                    if (c != null) handleUpdatePost(mainPost.id, c, mainPost.shelf_item?.id);
-                  }}>Edit</button>
-                  <button type="button" className="cd-link" onClick={() => handleDeletePost(mainPost.id)}>Delete</button>
-                </>
-              )}
-            </div>
-          )}
+          <div className="cd-actions">
+            {onViewClubShelf && (
+              <button
+                type="button"
+                className="cd-btn cd-btn-add cd-btn-view-shelf"
+                onClick={() => onViewClubShelf(clubId)}
+              >
+                View shelf
+              </button>
+            )}
+            {isClubAdmin && (
+              <>
+                <button type="button" className="cd-btn cd-btn-add" onClick={() => { setPostModalMessage(''); setShowAddPost(true); }}>Add Post</button>
+                {mainPost && (
+                  <>
+                    <button type="button" className="cd-link" onClick={() => {
+                      const c = prompt('Caption', mainPost.caption);
+                      if (c != null) handleUpdatePost(mainPost.id, c, mainPost.shelf_item?.id);
+                    }}>Edit</button>
+                    <button type="button" className="cd-link" onClick={() => handleDeletePost(mainPost.id)}>Delete</button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
           <div className="cd-caption">
             <span className="cd-caption-label">Caption</span>
             <p className="cd-caption-text">{mainPost?.caption || '—'}</p>
@@ -444,14 +484,19 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
               <p className="cd-hint">No poll yet.</p>
             )}
             {isClubAdmin && (
-              <button type="button" className="cd-btn cd-btn-secondary" onClick={() => setShowCreatePoll(true)}>Create poll</button>
+              <button type="button" className="cd-btn cd-btn-secondary" onClick={() => { setPollModalMessage(''); setShowCreatePoll(true); }}>Create poll</button>
             )}
           </section>
         </div>
       </div>
 
+      {pageMessage ? <p className="inline-form-msg cd-page-msg">{pageMessage}</p> : null}
+
       <section className="cd-discussion">
         <h3 className="cd-section-title">Discussion</h3>
+        {(club.description || '').trim() ? (
+          <p className="cd-discussion-club-caption">{(club.description || '').trim()}</p>
+        ) : null}
         {mainPostId ? (
           <>
             <ul className="cd-comment-list">
@@ -465,7 +510,7 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
                   )}
                   <span className="cd-comment-text">{c.text}</span>
                   <span className="cd-comment-date">{new Date(c.created_at).toLocaleString()}</span>
-                  {c.user === (typeof localStorage !== 'undefined' ? localStorage.getItem('username') : '') && (
+                  {isClubAdmin && (
                     <button type="button" className="cd-link cd-comment-delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>
                   )}
                 </li>
@@ -479,10 +524,15 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
         ) : (
           <p className="cd-hint">Add a post above to start the discussion.</p>
         )}
+        {isClubAdmin && (
+          <button type="button" className="cd-delete-club-btn" onClick={handleDeleteClub}>
+            Delete club
+          </button>
+        )}
       </section>
 
       {showAddPost && (
-        <div className="cd-modal-overlay" onClick={() => setShowAddPost(false)}>
+        <div className="cd-modal-overlay" onClick={() => { setShowAddPost(false); setPostModalMessage(''); }}>
           <div className="cd-modal" onClick={e => e.stopPropagation()}>
             <h3>Add Post</h3>
             <form onSubmit={handleCreatePost}>
@@ -513,16 +563,17 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
               <label>Caption</label>
               <textarea placeholder="Caption" value={postForm.caption} onChange={e => setPostForm(f => ({ ...f, caption: e.target.value }))} rows={3} className="cd-input" />
               <div className="cd-modal-actions">
-                <button type="button" onClick={() => setShowAddPost(false)}>Cancel</button>
+                <button type="button" onClick={() => { setShowAddPost(false); setPostModalMessage(''); }}>Cancel</button>
                 <button type="submit">Create</button>
               </div>
+              {postModalMessage ? <p className="inline-form-msg">{postModalMessage}</p> : null}
             </form>
           </div>
         </div>
       )}
 
       {showCreatePoll && (
-        <div className="cd-modal-overlay" onClick={() => setShowCreatePoll(false)}>
+        <div className="cd-modal-overlay" onClick={() => { setShowCreatePoll(false); setPollModalMessage(''); }}>
           <div className="cd-modal" onClick={e => e.stopPropagation()}>
             <h3>Create poll</h3>
             <p className="cd-hint">Enter the names of the two options. Members will vote on them.</p>
@@ -548,9 +599,10 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, isAppAdmin, backToV
               <label>End date</label>
               <input type="datetime-local" value={pollForm.end_date} onChange={e => setPollForm(f => ({ ...f, end_date: e.target.value }))} className="cd-input" required />
               <div className="cd-modal-actions">
-                <button type="button" onClick={() => setShowCreatePoll(false)}>Cancel</button>
+                <button type="button" onClick={() => { setShowCreatePoll(false); setPollModalMessage(''); }}>Cancel</button>
                 <button type="submit">Create poll</button>
               </div>
+              {pollModalMessage ? <p className="inline-form-msg">{pollModalMessage}</p> : null}
             </form>
           </div>
         </div>
