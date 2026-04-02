@@ -16,4 +16,7 @@ urlpatterns = [
     path('profile/<int:pk>/friends/', views.UserFriendsListView.as_view(), name='user_friends'),
     path('profile/<int:pk>/add-friend/', views.AddFriendView.as_view(), name='add_friend'),
     path('chat/<int:pk>/messages/', views.ChatMessageListAPI.as_view(), name='chat_messages'),
+    path('chat/notifications/', views.ChatNotificationsListView.as_view(), name='chat_notifications'),
+    path('chat/partners/', views.ChatPartnersListView.as_view(), name='chat_partners'),
+    path('profile/delete/', views.DeleteAccountView.as_view(), name='delete_account'),
 ]

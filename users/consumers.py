@@ -75,6 +75,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "created_at": msg["created_at"],
                 }
                 await self.channel_layer.group_send(self.room_group_name, payload)
+                notify_payload = {
+                    "type": "chat_notification",
+                    "id": msg["id"],
+                    "sender_id": msg["sender_id"],
+                    "receiver_id": msg["receiver_id"],
+                    "content": msg["content"],
+                    "created_at": msg["created_at"],
+                    "sender_username": msg.get("sender_username", ""),
+                    "sender_display_name": msg.get("sender_display_name", ""),
+                }
+                await self.channel_layer.group_send(f"user_{other_id}_notify", notify_payload)
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
@@ -85,12 +96,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             sender = User.objects.get(pk=sender_id)
             receiver = User.objects.get(pk=receiver_id)
             msg = ChatMessage.objects.create(sender=sender, receiver=receiver, content=content)
+            dn = f"{sender.first_name or ''} {sender.last_name or ''}".strip() or sender.username
             return {
                 "id": msg.id,
                 "sender_id": msg.sender_id,
                 "receiver_id": msg.receiver_id,
                 "content": msg.content,
                 "created_at": msg.created_at.isoformat(),
+                "sender_username": sender.username,
+                "sender_display_name": dn,
             }
         except User.DoesNotExist:
             return None
@@ -103,3 +117,59 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "content": event.get("content"),
             "created_at": event.get("created_at"),
         }))
+
+
+class ChatNotifyConsumer(AsyncWebsocketConsumer):
+    """Personal WebSocket for incoming chat (dashboard notification list)."""
+
+    async def connect(self):
+        try:
+            user = await self._notify_get_user()
+            if user is None:
+                await self.close()
+                return
+            self.scope["user"] = user
+        except Exception:
+            await self.close()
+            return
+        self.notify_group = f"user_{user.id}_notify"
+        await self.channel_layer.group_add(self.notify_group, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "notify_group"):
+            await self.channel_layer.group_discard(self.notify_group, self.channel_name)
+
+    async def receive(self, text_data):
+        pass
+
+    @database_sync_to_async
+    def _notify_get_user(self):
+        from rest_framework_simplejwt.tokens import AccessToken
+        from rest_framework_simplejwt.exceptions import InvalidToken
+        raw = self.scope.get("query_string") or b""
+        query = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
+        params = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
+        token = params.get("token", "")
+        if not token:
+            return None
+        try:
+            access = AccessToken(token)
+            return User.objects.get(pk=access["user_id"])
+        except (InvalidToken, User.DoesNotExist, KeyError):
+            return None
+
+    async def chat_notification(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "id": event.get("id"),
+                    "sender_id": event.get("sender_id"),
+                    "receiver_id": event.get("receiver_id"),
+                    "content": event.get("content"),
+                    "created_at": event.get("created_at"),
+                    "sender_username": event.get("sender_username", ""),
+                    "sender_display_name": event.get("sender_display_name", ""),
+                }
+            )
+        )

@@ -182,10 +182,12 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# External API Keys
-GOOGLE_BOOKS_API_KEY = os.getenv('GOOGLE_BOOKS_API_KEY', '')
-TMDB_API_KEY = os.getenv('TMDB_API_KEY', '')
-LISTENNOTES_API_KEY = os.getenv('LISTENNOTES_API_KEY', '')
+# External API Keys 
+GOOGLE_BOOKS_API_KEY = (os.getenv("GOOGLE_BOOKS_API_KEY", "") or "").strip()
+TMDB_API_KEY = (os.getenv("TMDB_API_KEY", "") or os.getenv("TMDB_KEY", "") or "").strip()
+LISTENNOTES_API_KEY = (
+    (os.getenv("LISTENNOTES_API_KEY", "") or os.getenv("LISTEN_API_KEY", "") or "").strip()
+)
 
 # Cloudinary 
 CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '')

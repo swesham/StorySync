@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import render
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
@@ -231,3 +232,69 @@ class ChatMessageListAPI(APIView):
             for m in messages
         ]
         return Response(data)
+
+
+def _display_name(user):
+    n = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    return n or user.username
+
+
+class ChatNotificationsListView(APIView):
+    """Recent messages you received (for dashboard notifications)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        qs = (
+            ChatMessage.objects.filter(receiver=user)
+            .select_related("sender")
+            .order_by("-created_at")[:60]
+        )
+        return Response(
+            [
+                {
+                    "id": m.id,
+                    "sender_id": m.sender_id,
+                    "sender_username": m.sender.username,
+                    "sender_display_name": _display_name(m.sender),
+                    "content": (m.content or "")[:400],
+                    "created_at": m.created_at.isoformat(),
+                }
+                for m in qs
+            ]
+        )
+
+
+class ChatPartnersListView(APIView):
+    """People you have chatted with, most recent activity first."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        msgs = (
+            ChatMessage.objects.filter(Q(sender=user) | Q(receiver=user))
+            .select_related("sender", "receiver")
+            .order_by("-created_at")[:400]
+        )
+        seen = {}
+        for m in msgs:
+            other = m.sender if m.receiver_id == user.id else m.receiver
+            oid = other.id
+            if oid not in seen:
+                seen[oid] = {
+                    "id": other.id,
+                    "username": other.username,
+                    "display_name": _display_name(other),
+                    "last_message_at": m.created_at.isoformat(),
+                }
+        partners = sorted(seen.values(), key=lambda x: x["last_message_at"], reverse=True)
+        return Response(partners)
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        user.delete()
+        return Response({'message': 'Account deleted successfully'})    

@@ -22,7 +22,6 @@ class User(AbstractUser):
 
 
 class Friendship(models.Model):
-    """Mutual friendship: (user1_id < user2_id) stored once."""
     user1 = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

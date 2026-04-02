@@ -68,6 +68,7 @@ function Chat({ otherUserId, otherDisplayName, onClose }) {
     if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ content: text, receiver_id: parseInt(otherUserId, 10) }));
     setInput('');
+    window.dispatchEvent(new CustomEvent('chatPartnerActivity'));
   };
 
   return (

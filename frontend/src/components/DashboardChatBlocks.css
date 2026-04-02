@@ -1,0 +1,37 @@
+.db-chat-notif-item {
+  align-items: flex-start;
+}
+
+.db-chat-notif-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.db-chat-notif-preview {
+  font-size: 0.88rem;
+  color: #555;
+  margin: 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.db-chat-notif-time {
+  font-size: 0.78rem;
+  color: #888;
+}
+
+.db-next-link {
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: #333;
+  font-weight: 600;
+  user-select: none;
+}
+
+.db-next-link:hover {
+  opacity: 0.65;
+}
