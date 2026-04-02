@@ -11,7 +11,7 @@
 }
 
 .profile-error {
-  color: #c00;
+  color: rgb(0, 0, 0);
 }
 
 .profile-card {
@@ -248,4 +248,34 @@
 .profile-friends-ul li {
   font-size: 0.95rem;
   padding: 0.25rem 0;
+}
+
+.profile-delete-btn {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.profile-delete-btn:hover {
+  background: #333;
+}
+
+.profile-edit-prefs-btn {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.profile-edit-prefs-btn:hover {
+  background: #333;
 }

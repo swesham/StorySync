@@ -122,6 +122,46 @@
   border-top: 1px solid #E0D9CC;
 }
 
+.detail-actions-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.detail-club-shelf-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e0d9cc;
+}
+
+.detail-club-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.club-shelf-select {
+  width: 100%;
+}
+
+.add-to-club-shelf-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-to-club-shelf-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .status-select {
   padding: 10px 16px;
   border: 1px solid #D0C9BC;
@@ -195,6 +235,10 @@
   }
 
   .add-to-shelf-btn {
+    width: 100%;
+  }
+
+  .add-to-club-shelf-btn {
     width: 100%;
   }
 }

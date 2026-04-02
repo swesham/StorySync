@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './MediaDetail.css';
+import '../inline-message.css';
 
 function MediaDetail({ item, onClose }) {
   const getDefaultStatus = () => {
@@ -15,8 +16,41 @@ function MediaDetail({ item, onClose }) {
     setShelfStatus(getDefaultStatus());
   }, [item?.type]);
   const [addingToShelf, setAddingToShelf] = useState(false);
+  const [addingToClubShelf, setAddingToClubShelf] = useState(false);
+  const [adminClubs, setAdminClubs] = useState([]);
+  const [selectedClubId, setSelectedClubId] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
 
   const API_BASE_URL = '/api/media';
+
+  useEffect(() => {
+    setActionMessage('');
+  }, [item]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token || !item) {
+      setAdminClubs([]);
+      setSelectedClubId('');
+      return;
+    }
+    fetch(`${API_BASE_URL}/clubs/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        const admins = list.filter((c) => c.current_user_role === 'ADMIN');
+        setAdminClubs(admins);
+        setSelectedClubId((prev) => {
+          const n = typeof prev === 'number' ? prev : Number(prev);
+          if (n && admins.some((c) => c.id === n)) return n;
+          return admins[0]?.id ?? '';
+        });
+      })
+      .catch(() => {
+        setAdminClubs([]);
+        setSelectedClubId('');
+      });
+  }, [item]);
 
   const getDetails = () => {
     if (item.type === 'book') {
@@ -44,13 +78,15 @@ function MediaDetail({ item, onClose }) {
         console.warn('Full movie data:', movieData);
       }
       
+      const posterRaw = movieData.poster_url || movieData.poster_path;
+      const thumbMovie = posterRaw
+        ? (String(posterRaw).startsWith('http') ? posterRaw : `https://image.tmdb.org/t/p/w500${posterRaw}`)
+        : '';
       return {
         title: movieData.title || 'Unknown Title',
         authors: movieData.release_date?.substring(0, 4) || 'Unknown Year',
         description: movieData.overview || 'No description available',
-        thumbnail: movieData.poster_path 
-          ? `https://image.tmdb.org/t/p/w500${movieData.poster_path}`
-          : '',
+        thumbnail: thumbMovie,
         publishedDate: movieData.release_date || '',
         categories: movieData.genre_ids || [],
         pageCount: movieData.vote_average || 0,
@@ -84,6 +120,24 @@ function MediaDetail({ item, onClose }) {
   };
 
   const details = getDetails();
+
+  const mapShelfStatusToClub = (s) => {
+    if (['WANT_TO_READ', 'WANT_TO_WATCH', 'WANT_TO_LISTEN'].includes(s)) return 'WANT';
+    if (s === 'IN_PROGRESS') return 'IN_PROGRESS';
+    if (s === 'FINISHED') return 'FINISHED';
+    return 'WANT';
+  };
+
+  const prepareClubShelfPayload = () => {
+    const mt = item.type === 'book' ? 'BOOK' : item.type === 'movie' ? 'MOVIE' : 'PODCAST';
+    return {
+      media_type: mt,
+      media_id: String(details.mediaId || '').trim(),
+      title: details.title || '',
+      image_url: details.thumbnail || '',
+      status: mapShelfStatusToClub(shelfStatus),
+    };
+  };
 
   const getShelfEndpoint = () => {
     if (item.type === 'book') return `${API_BASE_URL}/shelf/books/`;
@@ -121,12 +175,13 @@ function MediaDetail({ item, onClose }) {
         progress: 0,
       };
     } else if (item.type === 'podcast') {
+      const genreIds = Array.isArray(details.categories) ? details.categories : [];
       return {
         listen_notes_id: details.mediaId || '',
         title: details.title || '',
         publisher: details.authors || '',
         image: details.thumbnail || '',
-        genres: [],
+        genre_ids: genreIds,
         status: shelfStatus,
         progress: 0,
       };
@@ -135,48 +190,40 @@ function MediaDetail({ item, onClose }) {
   };
 
   const handleAddToShelf = async () => {
-    const token = localStorage.getItem('access_token'); 
-    
+    const token = localStorage.getItem('access_token');
+
     if (!token) {
-      alert('Please login first to add items to your shelf');
+      setActionMessage('Please log in first to add items to your shelf.');
       return;
     }
 
+    setActionMessage('');
     setAddingToShelf(true);
     try {
       const endpoint = getShelfEndpoint();
       const shelfData = prepareShelfData();
 
       if (item.type === 'book' && !shelfData.google_books_id) {
-        alert('Error: Book ID is missing. Please try selecting a different book.');
+        setActionMessage('Book ID is missing. Try selecting a different book.');
         setAddingToShelf(false);
         return;
       }
       if (item.type === 'movie' && !shelfData.tmdb_id) {
-        alert('Error: Movie ID is missing. Please try selecting a different movie.');
-        console.error('Movie data missing tmdb_id. Details:', details);
-        console.error('Item data:', item.data);
+        setActionMessage('Movie ID is missing. Try selecting a different movie.');
         setAddingToShelf(false);
         return;
       }
       if (item.type === 'podcast' && !shelfData.listen_notes_id) {
-        alert('Error: Podcast ID is missing. Please try selecting a different podcast.');
-        console.error('Podcast data missing listen_notes_id. Details:', details);
-        console.error('Item data:', item.data);
-        setAddingToShelf(false);
-        return;
-      }
-      
-      if (!shelfData.title || shelfData.title.trim() === '') {
-        alert('Error: Title is missing. Please try selecting a different item.');
+        setActionMessage('Podcast ID is missing. Try selecting a different podcast.');
         setAddingToShelf(false);
         return;
       }
 
-      console.log('Sending to:', endpoint);
-      console.log('Sending data:', JSON.stringify(shelfData, null, 2));
-      console.log('Item type:', item.type);
-      console.log('Item data:', item.data);
+      if (!shelfData.title || shelfData.title.trim() === '') {
+        setActionMessage('Title is missing. Try selecting a different item.');
+        setAddingToShelf(false);
+        return;
+      }
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -188,24 +235,19 @@ function MediaDetail({ item, onClose }) {
       });
 
       if (response.ok) {
-        alert('Successfully added to your shelf!');
         window.dispatchEvent(new Event('shelfUpdated'));
         onClose();
       } else {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        let errorMessage = 'Could not add to shelf. Try again.';
         try {
           const errorData = await response.json();
-          console.error('Add to shelf error response:', errorData);
-          console.error('Request data sent:', shelfData);
-          
           if (errorData.error) {
-            errorMessage = errorData.error;
+            errorMessage = String(errorData.error);
           } else if (errorData.detail) {
-            errorMessage = errorData.detail;
+            errorMessage = String(errorData.detail);
           } else if (errorData.message) {
-            errorMessage = errorData.message;
+            errorMessage = String(errorData.message);
           } else if (typeof errorData === 'object' && Object.keys(errorData).length > 0) {
-
             const firstKey = Object.keys(errorData)[0];
             const firstError = errorData[firstKey];
             if (Array.isArray(firstError)) {
@@ -213,24 +255,76 @@ function MediaDetail({ item, onClose }) {
             } else {
               errorMessage = `${firstKey}: ${firstError}`;
             }
-          } else {
-            errorMessage = JSON.stringify(errorData);
           }
-        } catch (e) {
-          const textResponse = await response.text().catch(() => '');
-          console.error('Response text:', textResponse);
-          if (textResponse) {
-            errorMessage = textResponse.substring(0, 200);
-          }
+        } catch {
+          /* keep default */
         }
-        
-        alert(`Failed to add to shelf: ${errorMessage}`);
+        setActionMessage(errorMessage);
       }
     } catch (error) {
       console.error('Add to shelf error:', error);
-      alert('Failed to add to shelf. Please try again.');
+      setActionMessage('Could not add to shelf. Try again.');
     } finally {
       setAddingToShelf(false);
+    }
+  };
+
+  const handleAddToClubShelf = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setActionMessage('Please log in first to add to a club shelf.');
+      return;
+    }
+    if (!selectedClubId) {
+      setActionMessage('Choose a club where you are an admin.');
+      return;
+    }
+    setActionMessage('');
+    setAddingToClubShelf(true);
+    try {
+      const payload = prepareClubShelfPayload();
+      if (item.type === 'book' && !payload.media_id) {
+        setActionMessage('Book ID is missing.');
+        return;
+      }
+      if (item.type === 'movie' && !payload.media_id) {
+        setActionMessage('Movie ID is missing.');
+        return;
+      }
+      if (item.type === 'podcast' && !payload.media_id) {
+        setActionMessage('Podcast ID is missing.');
+        return;
+      }
+      if (!payload.title?.trim()) {
+        setActionMessage('Title is missing.');
+        return;
+      }
+      const res = await fetch(`${API_BASE_URL}/clubs/${selectedClubId}/shelf/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setActionMessage('Added to club shelf.');
+        window.dispatchEvent(new Event('shelfUpdated'));
+      } else {
+        let msg = 'Could not add to club shelf. Try again.';
+        try {
+          const err = await res.json();
+          msg = err.detail || err.non_field_errors?.[0] || err.media_id?.[0] || msg;
+        } catch {
+          /* ignore */
+        }
+        setActionMessage(String(msg));
+      }
+    } catch (e) {
+      console.error(e);
+      setActionMessage('Could not add to club shelf. Try again.');
+    } finally {
+      setAddingToClubShelf(false);
     }
   };
 
@@ -299,7 +393,7 @@ function MediaDetail({ item, onClose }) {
               <p>{details.description}</p>
             </div>
 
-            <div className="detail-actions">
+            <div className="detail-actions detail-actions-stack">
               <select
                 className="status-select"
                 value={shelfStatus}
@@ -313,12 +407,38 @@ function MediaDetail({ item, onClose }) {
               </select>
 
               <button
+                type="button"
                 className="add-to-shelf-btn"
                 onClick={handleAddToShelf}
-                disabled={addingToShelf}
+                disabled={addingToShelf || addingToClubShelf}
               >
                 {addingToShelf ? 'Adding...' : 'Add to My Shelf'}
               </button>
+
+              {adminClubs.length > 0 && (
+                <div className="detail-club-shelf-row">
+                  <label className="detail-club-label" htmlFor="club-shelf-select">Club shelf</label>
+                  <select
+                    id="club-shelf-select"
+                    className="status-select club-shelf-select"
+                    value={selectedClubId || ''}
+                    onChange={(e) => setSelectedClubId(e.target.value ? Number(e.target.value) : '')}
+                  >
+                    {adminClubs.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="add-to-club-shelf-btn"
+                    onClick={handleAddToClubShelf}
+                    disabled={addingToShelf || addingToClubShelf || !selectedClubId}
+                  >
+                    {addingToClubShelf ? 'Adding...' : 'Add to Club Shelf'}
+                  </button>
+                </div>
+              )}
+              {actionMessage ? <p className="inline-form-msg">{actionMessage}</p> : null}
             </div>
 
             {item.type === 'book' && details.isbn && (

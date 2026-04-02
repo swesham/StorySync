@@ -3,36 +3,161 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import MyShelf from './components/MyShelf';
 import SearchFilter from './components/SearchFilter';
+import Explore from './components/Explore';
 import LandingPage from './components/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 import ClubDiscussion from './components/ClubDiscussion';
+import ClubShelf from './components/ClubShelf';
 import Profile from './components/Profile';
+import EditPreferences from './components/EditPreferences';
 import Chat from './components/Chat';
 import './App.css';
 
+const LS_ROUTE_KEYS = [
+  'app_club_discussion_id',
+  'app_club_shelf_initial_id',
+  'app_profile_user_id',
+  'app_view_shelf_user_id',
+  'app_view_shelf_display_name',
+  'app_chat_user_id',
+  'app_chat_display_name',
+];
+
+function clearStoredRouteExtras() {
+  LS_ROUTE_KEYS.forEach((k) => localStorage.removeItem(k));
+}
+
+function readNum(key) {
+  const v = localStorage.getItem(key);
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Restore view + ids so refresh stays on club chat, etc. */
+function loadPersistedRoute() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    clearStoredRouteExtras();
+    localStorage.removeItem('current_view');
+    return {
+      currentView: 'landing',
+      clubDiscussionId: null,
+      clubShelfInitialId: null,
+      profileUserId: null,
+      viewShelfUserId: null,
+      viewShelfDisplayName: '',
+      chatWithUserId: null,
+      chatWithDisplayName: '',
+    };
+  }
+
+  const rawSaved = localStorage.getItem('current_view');
+  let currentView =
+    rawSaved && !['landing', 'login', 'signup'].includes(rawSaved)
+      ? rawSaved
+      : sessionStorage.getItem('is_admin') === 'true'
+        ? 'dashboard'
+        : 'userdashboard';
+
+  const clubDiscussionId = readNum('app_club_discussion_id');
+  const clubShelfInitialId = readNum('app_club_shelf_initial_id');
+  const profileUserId = readNum('app_profile_user_id');
+  const viewShelfUserId = readNum('app_view_shelf_user_id');
+  const viewShelfDisplayName = localStorage.getItem('app_view_shelf_display_name') || '';
+  const chatWithUserId = readNum('app_chat_user_id');
+  const chatWithDisplayName = localStorage.getItem('app_chat_display_name') || '';
+
+  const home = sessionStorage.getItem('is_admin') === 'true' ? 'dashboard' : 'userdashboard';
+  if (currentView === 'clubdiscussion' && clubDiscussionId == null) currentView = home;
+  if (currentView === 'chat' && chatWithUserId == null) currentView = home;
+
+  return {
+    currentView,
+    clubDiscussionId: currentView === 'clubdiscussion' ? clubDiscussionId : null,
+    clubShelfInitialId: currentView === 'clubshelf' ? clubShelfInitialId : null,
+    profileUserId: currentView === 'profile' ? profileUserId : null,
+    viewShelfUserId: currentView === 'myshelf' ? viewShelfUserId : null,
+    viewShelfDisplayName: currentView === 'myshelf' ? viewShelfDisplayName : '',
+    chatWithUserId: currentView === 'chat' ? chatWithUserId : null,
+    chatWithDisplayName: currentView === 'chat' ? chatWithDisplayName : '',
+  };
+}
+
 function App() {
-  const [clubDiscussionId, setClubDiscussionId] = useState(null);
-  const [profileUserId, setProfileUserId] = useState(null);
-  const [viewShelfUserId, setViewShelfUserId] = useState(null);
-  const [viewShelfDisplayName, setViewShelfDisplayName] = useState('');
-  const [chatWithUserId, setChatWithUserId] = useState(null);
-  const [chatWithDisplayName, setChatWithDisplayName] = useState('');
-  const [currentView, setCurrentView] = useState(() => {
-    const token = localStorage.getItem('access_token');
-    const fromLogin = sessionStorage.getItem('from_login');
-    if (fromLogin && token) {
-      sessionStorage.removeItem('from_login');
-      return sessionStorage.getItem('is_admin') === 'true' ? 'dashboard' : 'userdashboard';
-    }
-    return 'landing';
-  });
+  const persisted = loadPersistedRoute();
+  const [clubDiscussionId, setClubDiscussionId] = useState(persisted.clubDiscussionId);
+  const [clubShelfInitialId, setClubShelfInitialId] = useState(persisted.clubShelfInitialId);
+  const [profileUserId, setProfileUserId] = useState(persisted.profileUserId);
+  const [viewShelfUserId, setViewShelfUserId] = useState(persisted.viewShelfUserId);
+  const [viewShelfDisplayName, setViewShelfDisplayName] = useState(persisted.viewShelfDisplayName);
+  const [chatWithUserId, setChatWithUserId] = useState(persisted.chatWithUserId);
+  const [chatWithDisplayName, setChatWithDisplayName] = useState(persisted.chatWithDisplayName);
+  const [currentView, setCurrentView] = useState(persisted.currentView);
   const isAdmin = sessionStorage.getItem('is_admin') === 'true';
 
   const isLoggedIn = !!localStorage.getItem('access_token');
   const showNav = !['landing', 'login', 'signup'].includes(currentView);
   const [navProfilePictureUrl, setNavProfilePictureUrl] = useState(null);
   const prevViewRef = useRef(currentView);
+
+  useEffect(() => {
+    const state = { view: currentView };
+    if (window.history.state?.view !== currentView) {
+      window.history.pushState(state, '', `#${currentView}`);
+    }
+  }, [currentView]);
+
+  useEffect(() => {
+    localStorage.setItem('current_view', currentView);
+    const setOrRemove = (key, val) => {
+      if (val != null && val !== '') localStorage.setItem(key, String(val));
+      else localStorage.removeItem(key);
+    };
+    setOrRemove('app_club_discussion_id', clubDiscussionId);
+    setOrRemove('app_club_shelf_initial_id', clubShelfInitialId);
+    setOrRemove('app_profile_user_id', profileUserId);
+    setOrRemove('app_view_shelf_user_id', viewShelfUserId);
+    if (viewShelfDisplayName) localStorage.setItem('app_view_shelf_display_name', viewShelfDisplayName);
+    else localStorage.removeItem('app_view_shelf_display_name');
+    setOrRemove('app_chat_user_id', chatWithUserId);
+    if (chatWithDisplayName) localStorage.setItem('app_chat_display_name', chatWithDisplayName);
+    else localStorage.removeItem('app_chat_display_name');
+  }, [
+    currentView,
+    clubDiscussionId,
+    clubShelfInitialId,
+    profileUserId,
+    viewShelfUserId,
+    viewShelfDisplayName,
+    chatWithUserId,
+    chatWithDisplayName,
+  ]);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+      const token = localStorage.getItem('access_token');
+      if (e.state?.view) {
+        const view = e.state.view;
+        if (!token) {
+          if (['landing', 'login', 'signup'].includes(view)) {
+            setCurrentView(view);
+          } else {
+            setCurrentView('landing'); 
+          }
+        } else {
+          if (['landing', 'login', 'signup'].includes(view)) {
+            setCurrentView(sessionStorage.getItem('is_admin') === 'true' ? 'dashboard' : 'userdashboard');
+          } else {
+            setCurrentView(view);
+          }
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     if (!showNav || !localStorage.getItem('access_token')) return;
@@ -56,13 +181,20 @@ function App() {
     if (view === 'logout') {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('current_view');
+      clearStoredRouteExtras();
       sessionStorage.removeItem('is_admin');
       setNavProfilePictureUrl(null);
       setCurrentView('landing');
       setClubDiscussionId(null);
+      setClubShelfInitialId(null);
       setProfileUserId(null);
       setViewShelfUserId(null);
+      setViewShelfDisplayName('');
+      setChatWithUserId(null);
+      setChatWithDisplayName('');
     } else {
+      if (view === 'clubshelf') setClubShelfInitialId(null);
       setCurrentView(view);
       if (view !== 'clubdiscussion') setClubDiscussionId(null);
       if (view === 'profile') setProfileUserId(null);
@@ -86,6 +218,16 @@ function App() {
     setCurrentView('clubdiscussion');
   };
 
+  const openClubShelf = (clubId) => {
+    if (!isAdmin) {
+      setClubShelfInitialId(null);
+      setCurrentView('userdashboard');
+      return;
+    }
+    setClubShelfInitialId(clubId ?? null);
+    setCurrentView('clubshelf');
+  };
+
   const openViewShelf = (userId, displayName) => {
     setViewShelfUserId(userId);
     setViewShelfDisplayName(displayName || '');
@@ -93,6 +235,10 @@ function App() {
   };
 
   const renderContent = () => {
+    const dashboard = isAdmin
+      ? <AdminDashboard onNavigate={handleNavigate} onOpenClubDiscussion={openClubDiscussion} onOpenProfile={openProfile} onOpenChat={openChat} />
+      : <UserDashboard onNavigate={handleNavigate} onOpenClubDiscussion={openClubDiscussion} onOpenProfile={openProfile} onOpenChat={openChat} />;
+  
     if (currentView === 'landing') return <LandingPage onNavigate={handleNavigate} />;
     if (currentView === 'login') return (
       <div className="auth-wrap">
@@ -114,14 +260,47 @@ function App() {
         </div>
       </div>
     );
-    if (currentView === 'dashboard') return isAdmin ? <AdminDashboard onNavigate={handleNavigate} onOpenClubDiscussion={openClubDiscussion} onOpenProfile={openProfile} onOpenChat={openChat} /> : <UserDashboard onNavigate={handleNavigate} onOpenClubDiscussion={openClubDiscussion} onOpenProfile={openProfile} onOpenChat={openChat} />;
+    if (currentView === 'dashboard') return dashboard;
     if (currentView === 'userdashboard') return <UserDashboard onNavigate={handleNavigate} onOpenClubDiscussion={openClubDiscussion} onOpenProfile={openProfile} onOpenChat={openChat} />;
-    if (currentView === 'clubdiscussion') return clubDiscussionId ? <ClubDiscussion clubId={clubDiscussionId} onNavigate={handleNavigate} onOpenProfile={openProfile} isAppAdmin={isAdmin} backToView={isAdmin ? 'dashboard' : 'userdashboard'} /> : null;
-    if (currentView === 'profile') return <Profile profileUserId={profileUserId} onNavigate={() => { setProfileUserId(null); handleNavigate(isAdmin ? 'dashboard' : 'userdashboard'); }} onOpenChat={openChat} onViewShelf={openViewShelf} />;
-    if (currentView === 'chat') return chatWithUserId ? <Chat otherUserId={chatWithUserId} otherDisplayName={chatWithDisplayName} onClose={() => { setChatWithUserId(null); setCurrentView(isAdmin ? 'dashboard' : 'userdashboard'); }} /> : null;
+    if (currentView === 'clubdiscussion') {
+      if (!clubDiscussionId) return dashboard;
+      return (
+        <ClubDiscussion
+          clubId={clubDiscussionId}
+          onNavigate={handleNavigate}
+          onOpenProfile={openProfile}
+          onViewClubShelf={isAdmin ? openClubShelf : null}
+          isAppAdmin={isAdmin}
+          backToView={isAdmin ? 'dashboard' : 'userdashboard'}
+        />
+      );
+    }
+    if (currentView === 'profile') {
+      return (
+        <Profile
+          profileUserId={profileUserId}
+          onNavigate={() => { setProfileUserId(null); handleNavigate(isAdmin ? 'dashboard' : 'userdashboard'); }}
+          onOpenChat={openChat}
+          onViewShelf={openViewShelf}
+          onEditPreferences={() => setCurrentView('editpreferences')}
+        />
+      );
+    }
+    if (currentView === 'editpreferences') {
+      return <EditPreferences onBack={() => setCurrentView('profile')} />;
+    }
+    if (currentView === 'chat') {
+      if (!chatWithUserId) return dashboard;
+      return <Chat otherUserId={chatWithUserId} otherDisplayName={chatWithDisplayName} onClose={() => { setChatWithUserId(null); setCurrentView(isAdmin ? 'dashboard' : 'userdashboard'); }} />;
+    }
     if (currentView === 'myshelf') return <MyShelf onNavigate={handleNavigate} viewUserId={viewShelfUserId} viewUserDisplayName={viewShelfDisplayName} />;
+    if (currentView === 'clubshelf') {
+      if (!isAdmin) return dashboard;
+      return <ClubShelf onNavigate={handleNavigate} initialClubId={clubShelfInitialId} />;
+    }
     if (currentView === 'search') return <SearchFilter onNavigate={handleNavigate} />;
-    return null;
+    if (currentView === 'explore') return <Explore />;
+    return dashboard;
   };
 
   return (
@@ -146,6 +325,10 @@ function App() {
               <button className={`main-navlink ${(currentView === 'dashboard' || currentView === 'userdashboard') ? 'active' : ''}`} onClick={() => handleNavigate(isAdmin ? 'dashboard' : 'userdashboard')}>Home</button>
               <button className={`main-navlink ${currentView === 'myshelf' ? 'active' : ''}`} onClick={() => handleNavigate('myshelf')}>Shelf</button>
               <button className={`main-navlink ${currentView === 'search' ? 'active' : ''}`} onClick={() => handleNavigate('search')}>Search</button>
+              <button className={`main-navlink ${currentView === 'explore' ? 'active' : ''}`} onClick={() => handleNavigate('explore')}>Explore</button>
+              {isAdmin ? (
+                <button className={`main-navlink ${currentView === 'clubshelf' ? 'active' : ''}`} onClick={() => handleNavigate('clubshelf')}>Club</button>
+              ) : null}
             </nav>
             <button className="main-logout" onClick={() => handleNavigate('logout')}>Logout</button>
           </div>

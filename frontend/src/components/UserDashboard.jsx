@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import './UserDashboard.css';
+import '../inline-message.css';
+import { DashboardChatNotifications, DashboardContinueChatting } from './DashboardChatBlocks';
 
 function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpenChat }) {
   const [clubs, setClubs] = useState([]);
@@ -10,6 +12,7 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
   const [shelfPage, setShelfPage] = useState(0);
   const [clubPage, setClubPage] = useState(0);
   const [friendsPage, setFriendsPage] = useState(0);
+  const [joinClubMessage, setJoinClubMessage] = useState('');
 
   const SHELF_PAGE_SIZE = 6;
   const CLUB_PAGE_SIZE = 4;
@@ -91,6 +94,7 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
   };
 
   const handleJoinClub = async (clubId) => {
+    setJoinClubMessage('');
     try {
       const token = localStorage.getItem('access_token');
       const response = await fetch(`/api/media/clubs/${clubId}/join/`, {
@@ -98,14 +102,14 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
       if (response.ok) {
-        alert('Successfully joined the club!');
+        setJoinClubMessage('Successfully joined the club.');
         fetchClubs();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to join club');
+        setJoinClubMessage(error.error || 'Failed to join club');
       }
     } catch (error) {
-      alert('Failed to join club');
+      setJoinClubMessage('Failed to join club');
     }
   };
 
@@ -193,7 +197,10 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
             {hasMoreClubs && <button type="button" className="db-pagination-btn" onClick={() => setClubPage(p => p + 1)}>Next</button>}
           </div>
         )}
+        {joinClubMessage ? <p className="inline-form-msg">{joinClubMessage}</p> : null}
       </div>
+
+      <DashboardChatNotifications onOpenProfile={onOpenProfile} />
 
       <div className="db-section">
         <span className="db-section-label">Friends</span>
@@ -221,22 +228,57 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
         </div>
       </div>
 
+      <DashboardContinueChatting onOpenProfile={onOpenProfile} onOpenChat={onOpenChat} />
+
       {shelfStats && (
         <div className="db-section">
           <span className="db-section-label">Shelf analytics</span>
-          <p className="db-hint">Most shelved genre (genre that appears most on your shelf)</p>
+          <p className="db-hint">Stats from your shelf</p>
           <div className="db-stats-grid">
             <div className="db-stat-card">
               <span className="db-stat-label">Books</span>
-              <span className="db-stat-value">{shelfStats.books?.top_genre || '—'}</span>
+              {shelfStats.books?.genres?.length ? (
+                <ul className="db-genre-list">
+                  {shelfStats.books.genres.map((row) => (
+                    <li key={row.genre} className="db-genre-row">
+                      <span className="db-genre-name">{row.genre}</span>
+                      <span className="db-genre-pct">{row.percent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="db-stat-empty">No genres yet</p>
+              )}
             </div>
             <div className="db-stat-card">
               <span className="db-stat-label">Movies</span>
-              <span className="db-stat-value">{shelfStats.movies?.top_genre || '—'}</span>
+              {shelfStats.movies?.genres?.length ? (
+                <ul className="db-genre-list">
+                  {shelfStats.movies.genres.map((row) => (
+                    <li key={row.genre} className="db-genre-row">
+                      <span className="db-genre-name">{row.genre}</span>
+                      <span className="db-genre-pct">{row.percent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="db-stat-empty">No genres yet</p>
+              )}
             </div>
             <div className="db-stat-card">
               <span className="db-stat-label">Podcasts</span>
-              <span className="db-stat-value">{shelfStats.podcasts?.top_genre || '—'}</span>
+              {shelfStats.podcasts?.genres?.length ? (
+                <ul className="db-genre-list">
+                  {shelfStats.podcasts.genres.map((row) => (
+                    <li key={row.genre} className="db-genre-row">
+                      <span className="db-genre-name">{row.genre}</span>
+                      <span className="db-genre-pct">{row.percent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="db-stat-empty">No genres yet</p>
+              )}
             </div>
           </div>
         </div>

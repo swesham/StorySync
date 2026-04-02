@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import './AdminDashboard.css';
+import '../inline-message.css';
+import { DashboardChatNotifications, DashboardContinueChatting } from './DashboardChatBlocks';
 
 function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpenChat }) {
   const [showCreateClub, setShowCreateClub] = useState(false);
@@ -14,6 +16,7 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
   const [shelfPage, setShelfPage] = useState(0);
   const [clubPage, setClubPage] = useState(0);
   const [friendsPage, setFriendsPage] = useState(0);
+  const [createClubMessage, setCreateClubMessage] = useState('');
 
   const SHELF_PAGE_SIZE = 6;
   const CLUB_PAGE_SIZE = 4;
@@ -97,6 +100,7 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
 
   const handleCreateClub = async (e) => {
     e.preventDefault();
+    setCreateClubMessage('');
     try {
       const token = localStorage.getItem('access_token');
       const response = await fetch('/api/media/clubs/', {
@@ -110,10 +114,10 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
         fetchClubs();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create club');
+        setCreateClubMessage(error.error || 'Failed to create club');
       }
     } catch (error) {
-      alert('Failed to create club');
+      setCreateClubMessage('Failed to create club');
     }
   };
 
@@ -164,7 +168,7 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
       <div className="db-section">
         <div className="db-section-header">
           <span className="db-section-label">Clubs</span>
-          <button className="db-create-btn" onClick={() => setShowCreateClub(true)}>Create Clubs</button>
+          <button className="db-create-btn" onClick={() => { setCreateClubMessage(''); setShowCreateClub(true); }}>Create Clubs</button>
         </div>
         <div className="db-clubs-grid">
           {loading ? (
@@ -200,6 +204,8 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
         )}
       </div>
 
+      <DashboardChatNotifications onOpenProfile={onOpenProfile} />
+
       <div className="db-section">
         <span className="db-section-label">Friends</span>
         <div className="db-friends-area">
@@ -226,29 +232,64 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
         </div>
       </div>
 
+      <DashboardContinueChatting onOpenProfile={onOpenProfile} onOpenChat={onOpenChat} />
+
       {shelfStats && (
         <div className="db-section">
           <span className="db-section-label">Shelf analytics</span>
-          <p className="db-hint">Most shelved genre (genre that appears most on your shelf)</p>
+          <p className="db-hint">Stats from your shelf</p>
           <div className="db-stats-grid">
             <div className="db-stat-card">
               <span className="db-stat-label">Books</span>
-              <span className="db-stat-value">{shelfStats.books?.top_genre || '—'}</span>
+              {shelfStats.books?.genres?.length ? (
+                <ul className="db-genre-list">
+                  {shelfStats.books.genres.map((row) => (
+                    <li key={row.genre} className="db-genre-row">
+                      <span className="db-genre-name">{row.genre}</span>
+                      <span className="db-genre-pct">{row.percent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="db-stat-empty">No genres yet</p>
+              )}
             </div>
             <div className="db-stat-card">
               <span className="db-stat-label">Movies</span>
-              <span className="db-stat-value">{shelfStats.movies?.top_genre || '—'}</span>
+              {shelfStats.movies?.genres?.length ? (
+                <ul className="db-genre-list">
+                  {shelfStats.movies.genres.map((row) => (
+                    <li key={row.genre} className="db-genre-row">
+                      <span className="db-genre-name">{row.genre}</span>
+                      <span className="db-genre-pct">{row.percent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="db-stat-empty">No genres yet</p>
+              )}
             </div>
             <div className="db-stat-card">
               <span className="db-stat-label">Podcasts</span>
-              <span className="db-stat-value">{shelfStats.podcasts?.top_genre || '—'}</span>
+              {shelfStats.podcasts?.genres?.length ? (
+                <ul className="db-genre-list">
+                  {shelfStats.podcasts.genres.map((row) => (
+                    <li key={row.genre} className="db-genre-row">
+                      <span className="db-genre-name">{row.genre}</span>
+                      <span className="db-genre-pct">{row.percent}%</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="db-stat-empty">No genres yet</p>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {showCreateClub && (
-        <div className="db-modal-overlay" onClick={() => setShowCreateClub(false)}>
+        <div className="db-modal-overlay" onClick={() => { setShowCreateClub(false); setCreateClubMessage(''); }}>
           <div className="db-modal" onClick={e => e.stopPropagation()}>
             <h3 className="db-modal-title">Create New Club</h3>
             <div className="db-modal-body">
@@ -265,9 +306,10 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
                 value={clubForm.description}
                 onChange={e => setClubForm({ ...clubForm, description: e.target.value })} rows="3" />
               <div className="db-modal-actions">
-                <button className="db-modal-cancel" onClick={() => setShowCreateClub(false)}>Cancel</button>
+                <button className="db-modal-cancel" onClick={() => { setShowCreateClub(false); setCreateClubMessage(''); }}>Cancel</button>
                 <button className="db-modal-confirm" onClick={handleCreateClub}>Create Club</button>
               </div>
+              {createClubMessage ? <p className="inline-form-msg">{createClubMessage}</p> : null}
             </div>
           </div>
         </div>

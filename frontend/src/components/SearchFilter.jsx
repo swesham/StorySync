@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './SearchFilter.css';
+import '../inline-message.css';
 import MediaDetail from './MediaDetail';
 
 function SearchFilter() {
@@ -8,14 +9,21 @@ function SearchFilter() {
   const [genre, setGenre] = useState('');
   const [year, setYear] = useState('');
   const [results, setResults] = useState([]);
+  const [hints, setHints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [searchMessage, setSearchMessage] = useState('');
 
   const API_BASE_URL = '/api/media';
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) { alert('Please enter a search title'); return; }
+    if (!searchQuery.trim()) {
+      setSearchMessage('Please enter a search title.');
+      return;
+    }
+    setSearchMessage('');
     setLoading(true);
+    setHints([]);
     try {
       const params = new URLSearchParams({ q: searchQuery, type: mediaType });
       if (genre) params.append('genre', genre);
@@ -25,12 +33,16 @@ function SearchFilter() {
       const isJson = contentType.includes('application/json');
       const data = isJson ? await response.json() : { results: [], error: 'Invalid response from server' };
       setResults(data.results || []);
+      const nextHints = [...(data.hints || [])];
+      if (data.hint && !nextHints.includes(data.hint)) nextHints.push(data.hint);
+      setHints(nextHints);
       if (!response.ok && data.error) {
-        alert(data.error);
+        setSearchMessage(String(data.error));
       }
     } catch (error) {
-      alert(error.message || 'Failed to search. Check that the backend is running (python manage.py runserver).');
+      setSearchMessage(error.message || 'Search failed. Check that the backend is running.');
       setResults([]);
+      setHints([]);
     } finally {
       setLoading(false);
     }
@@ -64,12 +76,14 @@ function SearchFilter() {
             className="search-input"
             placeholder="Search books, movies, podcasts..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setSearchMessage(''); }}
             onKeyPress={handleKeyPress}
           />
           <button className="search-icon-btn" onClick={handleSearch}>Search</button>
         </div>
       </div>
+
+      {searchMessage ? <p className="inline-form-msg search-inline-msg">{searchMessage}</p> : null}
 
       <div className="filter-section">
         <div className="filter-buttons">
@@ -91,6 +105,13 @@ function SearchFilter() {
       </div>
 
       <div className="results-section">
+        {hints.length > 0 && (
+          <div className="search-hints" role="status">
+            {hints.map((h, i) => (
+              <p key={i} className="search-hint-line">{h}</p>
+            ))}
+          </div>
+        )}
         {loading ? (
           <div className="loading-message">Searching...</div>
         ) : results.length === 0 ? (
