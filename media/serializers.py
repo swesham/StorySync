@@ -123,11 +123,14 @@ class PodcastShelfItemSerializer(serializers.ModelSerializer):
 
 
 class ClubShelfItemSerializer(serializers.ModelSerializer):
+    club_name = serializers.CharField(source="club.name", read_only=True)
+
     class Meta:
         model = ClubShelfItem
         fields = [
             "id",
             "club",
+            "club_name",
             "media_id",
             "media_type",
             "status",
@@ -136,7 +139,7 @@ class ClubShelfItemSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "club", "created_at", "updated_at"]
+        read_only_fields = ["id", "club", "club_name", "created_at", "updated_at"]
 
 
 class ClubPollSerializer(serializers.ModelSerializer):

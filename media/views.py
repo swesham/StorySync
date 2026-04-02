@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 
 from users.models import Friendship
+from .recommendations import build_recommendations_for_user
 from .services import GoogleBooksService, TMDbService, ListenNotesService
 from .models import (
     BookShelfItem,
@@ -111,40 +112,69 @@ def shelf_media_genre(request):
             id2name = TMDbService().get_genre_id_to_name()
             ids = data.get("genre_ids") or [g.get("id") for g in (data.get("genres") or []) if g.get("id")]
             genres = [id2name[i] for i in ids if i in id2name and id2name[i]]
+    elif media_type == "podcast":
+        raw = ListenNotesService().get_podcast(media_id)
+        pod = raw.get("podcast") if isinstance(raw, dict) and isinstance(raw.get("podcast"), dict) else raw
+        if isinstance(pod, dict):
+            id2name = ListenNotesService().get_podcast_genre_id_to_name()
+            ids = pod.get("genre_ids") or []
+            if not isinstance(ids, list):
+                ids = []
+            for i in ids:
+                try:
+                    gid = int(i)
+                except (TypeError, ValueError):
+                    continue
+                n = id2name.get(gid)
+                if n:
+                    genres.append(n)
     return Response({"genres": genres})
 
 
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def shelf_stats(request):
-    """Most common genre per shelf type for the current user."""
+    """Genre mix on your shelf: each label with count and % of genre tags."""
     user = request.user
-    def top_genre(queryset):
+
+    def genre_breakdown(queryset):
         count = {}
         for item in queryset:
             genres = getattr(item, "genres", None) or []
             if isinstance(genres, list):
                 for g in genres:
-                    if g:
-                        s = str(g).strip()
-                        if s:
-                            count[s] = count.get(s, 0) + 1
-        if not count:
-            return None
-        return max(count, key=count.get)
+                    s = str(g).strip()
+                    if s:
+                        count[s] = count.get(s, 0) + 1
+        total = sum(count.values())
+        if total == 0:
+            return []
+        rows = [
+            {"genre": k, "count": v, "percent": round(100.0 * v / total, 1)}
+            for k, v in count.items()
+        ]
+        rows.sort(key=lambda x: (-x["percent"], x["genre"].lower()))
+        return rows
 
     books = BookShelfItem.objects.filter(user=user)
     movies = MovieShelfItem.objects.filter(user=user)
     podcasts = PodcastShelfItem.objects.filter(user=user)
     return Response({
-        "books": {"top_genre": top_genre(books)},
-        "movies": {"top_genre": top_genre(movies)},
-        "podcasts": {"top_genre": top_genre(podcasts)},
+        "books": {"genres": genre_breakdown(books)},
+        "movies": {"genres": genre_breakdown(movies)},
+        "podcasts": {"genres": genre_breakdown(podcasts)},
     })
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
+def personalized_recommendations(request):
+    data = build_recommendations_for_user(request.user)
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
 def cloudinary_config(request):
     """Cloudinary config for client uploads."""
     cloud_name = getattr(settings, 'CLOUDINARY_CLOUD_NAME', '') or ''
@@ -204,11 +234,14 @@ def search_movies(request):
         )
 
     service = TMDbService()
-    results = service.search_movies(query)
+    data = service.search_movies(query)
+    raw = data if isinstance(data, dict) else {}
+    movie_list = raw.get('results')
+    movie_list = movie_list if isinstance(movie_list, list) else []
 
     return Response({
         'query': query,
-        'results': results
+        'results': movie_list,
     }, status=status.HTTP_200_OK)
 
 
@@ -224,11 +257,14 @@ def search_podcasts(request):
         )
 
     service = ListenNotesService()
-    results = service.search_podcasts(query)
+    data = service.search_podcasts(query)
+    raw = data if isinstance(data, dict) else {}
+    podcast_list = raw.get('results')
+    podcast_list = podcast_list if isinstance(podcast_list, list) else []
 
     return Response({
         'query': query,
-        'results': results
+        'results': podcast_list,
     }, status=status.HTTP_200_OK)
 
 
@@ -282,7 +318,9 @@ def unified_search(request):
         def add_movie_results():
             service = TMDbService()
             data = service.search_movies(query)
-            items = data.get('results', []) if isinstance(data, dict) else []
+            raw = data if isinstance(data, dict) else {}
+            items = raw.get('results')
+            items = items if isinstance(items, list) else []
 
             genre_id = int(genre) if genre.isdigit() else None
             if genre and not genre_id:
@@ -291,7 +329,8 @@ def unified_search(request):
 
             for item in items:
                 release_year = _safe_year(item.get('release_date')) if isinstance(item, dict) else None
-                genre_ids = item.get('genre_ids', []) if isinstance(item, dict) else []
+                gids = item.get('genre_ids', []) if isinstance(item, dict) else []
+                genre_ids = gids if isinstance(gids, list) else []
                 if year_int and release_year != year_int:
                     continue
                 if genre and genre_id and genre_id not in genre_ids:
@@ -306,12 +345,15 @@ def unified_search(request):
 
         def add_podcast_results():
             data = ListenNotesService().search_podcasts(query)
-            items = data.get('results', []) if isinstance(data, dict) else []
+            raw = data if isinstance(data, dict) else {}
+            items = raw.get('results')
+            items = items if isinstance(items, list) else []
 
             genre_id = int(genre) if genre.isdigit() else None
             for item in items:
                 item = item if isinstance(item, dict) else {}
-                genre_ids = item.get('genre_ids', []) or []
+                gids = item.get('genre_ids') or []
+                genre_ids = gids if isinstance(gids, list) else []
                 # ListenNotes doesn't reliably expose a year on podcast search results,
                 # so year filter will only work when a year field is present.
                 candidate_year = (
@@ -345,16 +387,28 @@ def unified_search(request):
         if search_type in ('all', 'podcast'):
             add_podcast_results()
 
-        hint = None
-        if not results and search_type in ('all', 'book'):
-            if not getattr(settings, 'GOOGLE_BOOKS_API_KEY', None):
-                hint = (
-                    'Book search is rate-limited without an API key. '
-                    'Add a free GOOGLE_BOOKS_API_KEY in .env (get one at console.cloud.google.com).'
+        # Books can work without a key; movies/podcasts need keys or you only see books.
+        hints = []
+        if not getattr(settings, "TMDB_API_KEY", None) and search_type in ("all", "movie"):
+            hints.append(
+                "Movie search needs TMDB_API_KEY in .env (free: themoviedb.org/settings/api). "
+                "Restart Django after adding it."
+            )
+        if not getattr(settings, "LISTENNOTES_API_KEY", None) and search_type in ("all", "podcast"):
+            hints.append(
+                "Podcast search needs LISTENNOTES_API_KEY in .env (free: listennotes.com/api). "
+                "Restart Django after adding it."
+            )
+        if not results and search_type in ("all", "book"):
+            if not getattr(settings, "GOOGLE_BOOKS_API_KEY", None):
+                hints.append(
+                    "Book search is rate-limited without GOOGLE_BOOKS_API_KEY "
+                    "(console.cloud.google.com)."
                 )
-        response_data = {'query': query, 'results': results}
-        if hint:
-            response_data['hint'] = hint
+
+        response_data = {"query": query, "results": results}
+        if hints:
+            response_data["hints"] = hints
         return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response(
@@ -454,7 +508,21 @@ class PodcastShelfListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        genre_ids = self.request.data.get("genre_ids")
+        genres = []
+        if isinstance(genre_ids, list) and genre_ids and getattr(settings, "LISTENNOTES_API_KEY", None):
+            id2name = ListenNotesService().get_podcast_genre_id_to_name()
+            for raw in genre_ids:
+                try:
+                    gid = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                n = id2name.get(gid)
+                if n:
+                    genres.append(n)
+        if not genres:
+            genres = serializer.validated_data.get("genres") or []
+        serializer.save(user=self.request.user, genres=genres)
 
 
 class PodcastShelfDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -523,7 +591,7 @@ class JoinClubView(views.APIView):
             )
 
 
-class ClubDetailView(generics.RetrieveAPIView):
+class ClubDetailView(generics.RetrieveDestroyAPIView):
     serializer_class = ClubSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -534,6 +602,21 @@ class ClubDetailView(generics.RetrieveAPIView):
         return Club.objects.filter(
             Q(is_private=False) | Q(memberships__user=user)
         ).distinct()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            instance.delete()
+            return
+        if instance.created_by_id == user.id:
+            instance.delete()
+            return
+        if ClubMember.objects.filter(
+            user=user, club=instance, role=ClubMember.Role.ADMIN
+        ).exists():
+            instance.delete()
+            return
+        raise PermissionDenied("Only club admins or the creator can delete this club.")
 
 
 class ClubShelfItemListCreateView(generics.ListCreateAPIView):
@@ -561,7 +644,7 @@ class ClubShelfItemListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         club = self.get_club()
-        self._ensure_member(club)
+        self._ensure_admin(club)
         return ClubShelfItem.objects.filter(club=club)
 
     def perform_create(self, serializer):
@@ -584,8 +667,8 @@ class ClubShelfItemDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
         membership = ClubMember.objects.filter(user=self.request.user, club=club).first()
-        if membership is None and not (getattr(self.request.user, "is_staff", False) or getattr(self.request.user, "is_superuser", False)):
-            raise PermissionDenied("You are not a member of this club.")
+        if not (getattr(self.request.user, "is_staff", False) or getattr(self.request.user, "is_superuser", False)) and (membership is None or membership.role != ClubMember.Role.ADMIN):
+            raise PermissionDenied("Only club admins can access the club shelf.")
 
         if self.request.method in ("PUT", "PATCH", "DELETE"):
             if not (getattr(self.request.user, "is_staff", False) or getattr(self.request.user, "is_superuser", False)) and (membership is None or membership.role != ClubMember.Role.ADMIN):
@@ -730,6 +813,12 @@ class ClubCommentDetailView(generics.DestroyAPIView):
 
     def get_object(self):
         comment = super().get_object()
-        if comment.user_id != self.request.user.id:
-            raise PermissionDenied("You can only delete your own comment.")
-        return comment
+        user = self.request.user
+        if comment.user_id == user.id:
+            return comment
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return comment
+        membership = ClubMember.objects.filter(user=user, club=comment.post.club).first()
+        if membership and membership.role == ClubMember.Role.ADMIN:
+            return comment
+        raise PermissionDenied("You can only delete your own comment.")

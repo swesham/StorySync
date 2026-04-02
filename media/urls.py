@@ -24,6 +24,7 @@ urlpatterns = [
     path('shelf/friend-reviews/', views.shelf_friend_reviews, name='shelf_friend_reviews'),
     path('shelf/media-genre/', views.shelf_media_genre, name='shelf_media_genre'),
     path('shelf-stats/', views.shelf_stats, name='shelf_stats'),
+    path('recommendations/', views.personalized_recommendations, name='personalized_recommendations'),
     path('shelf/books/', views.BookShelfListCreateView.as_view(), name='book_shelf_list'),
     path('shelf/books/<int:pk>/', views.BookShelfDetailView.as_view(), name='book_shelf_detail'),
     path('shelf/movies/', views.MovieShelfListCreateView.as_view(), name='movie_shelf_list'),
