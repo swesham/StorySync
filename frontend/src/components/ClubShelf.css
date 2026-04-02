@@ -1,0 +1,50 @@
+.ms-club-shelf-brand {
+  font-weight: 700;
+}
+
+.ms-club-select-label {
+  display: block;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 0.75rem;
+}
+
+.ms-club-select {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 0.95rem;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.ms-club-empty-hint {
+  font-size: 0.85rem;
+  color: #666;
+  text-align: left;
+  line-height: 1.4;
+  margin: 0 0 1rem;
+}
+
+.ms-club-readonly-status {
+  font-size: 0.9rem;
+  color: #444;
+  margin: 0.25rem 0;
+}
+
+.ms-club-shelf-block {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}
+
+.ms-club-shelf-name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.25rem 0 0;
+  color: #111;
+}
