@@ -13,6 +13,7 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
   const [showUsername, setShowUsername] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [postingReview, setPostingReview] = useState(false);
+  const [deletingReview, setDeletingReview] = useState(false);
   const [friendReviews, setFriendReviews] = useState([]);
   const [apiGenres, setApiGenres] = useState([]);
 
@@ -214,11 +215,37 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
       if (response.ok) {
         refreshShelf();
         setCurrentItem((prev) => (prev ? { ...prev, review: reviewText ?? '' } : null));
+        window.dispatchEvent(new Event('shelfUpdated'));
       }
     } catch (e) {
       console.error('Failed to post review', e);
     } finally {
       setPostingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token || !currentItem?.id || isViewingOther) return;
+    if (!String(currentItem.review || '').trim()) return;
+    setDeletingReview(true);
+    try {
+      const base = getShelfEndpoint(selectedMediaType);
+      const response = await fetch(`${base}${currentItem.id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ review: '' }),
+      });
+      if (response.ok) {
+        setReviewText('');
+        setCurrentItem((prev) => (prev ? { ...prev, review: '' } : null));
+        refreshShelf();
+        window.dispatchEvent(new Event('shelfUpdated'));
+      }
+    } catch (e) {
+      console.error('Failed to delete review', e);
+    } finally {
+      setDeletingReview(false);
     }
   };
 
@@ -347,9 +374,19 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
                       placeholder="Write your review..."
                       rows={3}
                     />
-                    <button type="button" className="ms-review-post" onClick={handlePostReview} disabled={postingReview}>
-                      {postingReview ? 'Posting...' : 'Post'}
-                    </button>
+                    <div className="ms-review-actions">
+                      <button type="button" className="ms-review-post" onClick={handlePostReview} disabled={postingReview || deletingReview}>
+                        {postingReview ? 'Posting...' : 'Post'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ms-review-post"
+                        onClick={handleDeleteReview}
+                        disabled={deletingReview || postingReview || !String(currentItem.review || '').trim()}
+                      >
+                        {deletingReview ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                   {friendReviews.length > 0 && (
                     <div className="ms-friend-reviews">

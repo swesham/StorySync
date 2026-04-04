@@ -278,6 +278,14 @@
   border-color: #111;
 }
 
+.ms-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  align-self: flex-start;
+}
+
 .ms-review-post {
   padding: 9px 16px;
   background: #111;
