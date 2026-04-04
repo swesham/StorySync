@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 import '../inline-message.css';
 import { DashboardChatNotifications, DashboardContinueChatting } from './DashboardChatBlocks';
+import ShelfAnalyticsCharts from './ShelfAnalyticsCharts';
 
 function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpenChat }) {
   const [showCreateClub, setShowCreateClub] = useState(false);
@@ -28,6 +29,12 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
     fetchFriends();
     fetchShelfStats();
     setUsername(localStorage.getItem('username') || 'User');
+  }, []);
+
+  useEffect(() => {
+    const onShelf = () => fetchShelfStats();
+    window.addEventListener('shelfUpdated', onShelf);
+    return () => window.removeEventListener('shelfUpdated', onShelf);
   }, []);
 
   const fetchShelfStats = async () => {
@@ -238,53 +245,7 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
         <div className="db-section">
           <span className="db-section-label">Shelf analytics</span>
           <p className="db-hint">Stats from your shelf</p>
-          <div className="db-stats-grid">
-            <div className="db-stat-card">
-              <span className="db-stat-label">Books</span>
-              {shelfStats.books?.genres?.length ? (
-                <ul className="db-genre-list">
-                  {shelfStats.books.genres.map((row) => (
-                    <li key={row.genre} className="db-genre-row">
-                      <span className="db-genre-name">{row.genre}</span>
-                      <span className="db-genre-pct">{row.percent}%</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="db-stat-empty">No genres yet</p>
-              )}
-            </div>
-            <div className="db-stat-card">
-              <span className="db-stat-label">Movies</span>
-              {shelfStats.movies?.genres?.length ? (
-                <ul className="db-genre-list">
-                  {shelfStats.movies.genres.map((row) => (
-                    <li key={row.genre} className="db-genre-row">
-                      <span className="db-genre-name">{row.genre}</span>
-                      <span className="db-genre-pct">{row.percent}%</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="db-stat-empty">No genres yet</p>
-              )}
-            </div>
-            <div className="db-stat-card">
-              <span className="db-stat-label">Podcasts</span>
-              {shelfStats.podcasts?.genres?.length ? (
-                <ul className="db-genre-list">
-                  {shelfStats.podcasts.genres.map((row) => (
-                    <li key={row.genre} className="db-genre-row">
-                      <span className="db-genre-name">{row.genre}</span>
-                      <span className="db-genre-pct">{row.percent}%</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="db-stat-empty">No genres yet</p>
-              )}
-            </div>
-          </div>
+          <ShelfAnalyticsCharts shelfStats={shelfStats} />
         </div>
       )}
 
