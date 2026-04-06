@@ -18,11 +18,33 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'email': {'required': True}
         }
+
+    def validate_email(self, value):
+        v = (value or "").strip()
+        if not v:
+            raise serializers.ValidationError("This field may not be blank.")
+        if User.objects.filter(email__iexact=v).exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return v
+
+    def validate_username(self, value):
+        v = (value or "").strip()
+        if not v:
+            raise serializers.ValidationError("This field may not be blank.")
+        if User.objects.filter(username__iexact=v).exists():
+            raise serializers.ValidationError("A user with that username already exists.")
+        return v
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({
                 "password": "Password fields didn't match."
+            })
+        first = (attrs.get("first_name") or "").strip()
+        last = (attrs.get("last_name") or "").strip()
+        if not first or not last:
+            raise serializers.ValidationError({
+                "full_name": "Please provide both first and last name."
             })
         return attrs
     

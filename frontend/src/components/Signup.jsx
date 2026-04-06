@@ -32,6 +32,7 @@ function Signup() {
   const [genreMessage, setGenreMessage] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -65,6 +66,10 @@ function Signup() {
     setPasswordMismatch(false);
 
     const nameParts = formData.fullName.trim().split(/\s+/);
+    if (nameParts.length < 2) {
+      setFormSubmitMessage('Please enter your full name (first and last name).');
+      return;
+    }
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
   
@@ -73,12 +78,12 @@ function Signup() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: (nameParts[0] + (nameParts[1] ? nameParts[1] : '')).toLowerCase().replace(/\s+/g, ''),
+          username: formData.username,
           email: formData.email,
           password: formData.password,
           password2: formData.confirmPassword,
-          first_name: nameParts[0] || '',
-          last_name: nameParts.slice(1).join(' ') || '',
+          first_name: firstName,
+          last_name: lastName,
         }),
       });
   
@@ -199,6 +204,17 @@ function Signup() {
             autoComplete="name"
             placeholder="Full name"
             value={formData.fullName}
+            onChange={handleChange}
+            className="auth-input"
+            required
+          />
+
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            placeholder="Username"
+            value={formData.username}
             onChange={handleChange}
             className="auth-input"
             required
