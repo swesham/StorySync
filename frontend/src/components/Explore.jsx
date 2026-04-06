@@ -11,6 +11,9 @@ const ROWS = [
   { key: 'preference_podcasts', title: 'More podcasts from your favorite genres' },
   { key: 'friends_shelf', title: 'What your friends have on their shelves' },
   { key: 'shelf_mixed', title: 'From your shelf you might be interested in' },
+  {key: 'cross_movies_from_books_podcasts', title: 'Movies that match your books & podcasts'},
+  {key: 'cross_books_from_movies_podcasts', title: 'Books that match your movies & podcasts'},
+  {key: 'cross_podcasts_from_books_movies', title: 'Podcasts tuned to your reading & viewing'},
   { key: 'discover_books', title: 'Discover — books from top genres and popular fiction' },
   { key: 'discover_movies', title: 'Discover — movies tuned to your taste' },
   { key: 'discover_podcasts', title: 'Discover — podcasts tuned to your taste' },
@@ -19,7 +22,7 @@ const ROWS = [
   { key: 'popular_podcasts', title: 'Popular podcasts — Listen Notes picks' },
 ];
 
-function CarouselRow({ title, items, onPick }) {
+function CarouselRow({ title, items, onPick, emptyHint }) {
   const trackRef = useRef(null);
   const scrollPrev = () => {
     trackRef.current?.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
@@ -43,7 +46,7 @@ function CarouselRow({ title, items, onPick }) {
       </div>
       {items.length === 0 ? (
         <p className="explore-empty">
-          Add interests and shelf items.
+          {emptyHint || 'Add interests and shelf items.'}
         </p>
       ) : (
         <div className="explore-track-wrap">
@@ -146,12 +149,13 @@ function Explore() {
 
       {!loading && !err && payload && (
         <>
-          {ROWS.map(({ key, title }) => (
+          {ROWS.map(({ key, title, emptyHint }) => (
             <CarouselRow
               key={key}
               title={title}
               items={Array.isArray(payload[key]) ? payload[key] : []}
               onPick={setSelectedItem}
+              emptyHint={emptyHint}
             />
           ))}
         </>

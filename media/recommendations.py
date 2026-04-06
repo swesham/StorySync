@@ -1,6 +1,3 @@
-"""
-Explore feed: sign-up genres, friends mix, shelf mix, full-signal discover, trending APIs.
-"""
 import re
 from collections import Counter, defaultdict
 
@@ -56,29 +53,38 @@ def _preference_labels(user):
     return [x.strip() for x in (user.interests or []) if isinstance(x, str) and x.strip()]
 
 
-def _shelf_genres_keywords(user):
+def _genres_keywords_from_shelf_types(user, include):
+    """Pull genre weights and title tokens from only the shelf types you ask for."""
     gw = defaultdict(float)
     titles = []
-    for row in BookShelfItem.objects.filter(user=user).only("genres", "title"):
-        titles.append(row.title)
-        for g in row.genres or []:
-            s = str(g).strip()
-            if s:
-                gw[s] += 1.0
-    for row in MovieShelfItem.objects.filter(user=user).only("genres", "title"):
-        titles.append(row.title)
-        for g in row.genres or []:
-            s = str(g).strip()
-            if s:
-                gw[s] += 1.0
-    for row in PodcastShelfItem.objects.filter(user=user).only("genres", "title"):
-        titles.append(row.title)
-        for g in row.genres or []:
-            s = str(g).strip()
-            if s:
-                gw[s] += 1.0
-    top = [g for g, _ in sorted(gw.items(), key=lambda x: -x[1])[:12]]
+    if "book" in include:
+        for row in BookShelfItem.objects.filter(user=user).only("genres", "title"):
+            titles.append(row.title)
+            for g in row.genres or []:
+                s = str(g).strip()
+                if s:
+                    gw[s] += 1.0
+    if "movie" in include:
+        for row in MovieShelfItem.objects.filter(user=user).only("genres", "title"):
+            titles.append(row.title)
+            for g in row.genres or []:
+                s = str(g).strip()
+                if s:
+                    gw[s] += 1.0
+    if "podcast" in include:
+        for row in PodcastShelfItem.objects.filter(user=user).only("genres", "title"):
+            titles.append(row.title)
+            for g in row.genres or []:
+                s = str(g).strip()
+                if s:
+                    gw[s] += 1.0
+    top = [g for g, _ in sorted(gw.items(), key=lambda x: -x[1])[:20]]
     return top, _tokenize_titles(titles)
+
+
+def _shelf_genres_keywords(user):
+    sg, kw = _genres_keywords_from_shelf_types(user, ("book", "movie", "podcast"))
+    return sg[:12], kw
 
 
 def _collect_signals_full(user):
@@ -367,6 +373,42 @@ def _friend_shelf_rows(user, limit=36):
     return rows
 
 
+def _movies_from_book_podcast_shelves(user, seen_m, limit, tmdb):
+    """Film ideas grounded in what you read and listen to—your movie shelf never weighs in."""
+    sg, skw = _genres_keywords_from_shelf_types(user, ("book", "podcast"))
+    if not sg and not skw:
+        return []
+    tmdb_map = tmdb.get_genre_map()
+    gids = _tmdb_ids_for_labels(sg, tmdb_map)
+    out = _take_movies_discover(tmdb, gids, seen_m, limit) if gids else []
+    if len(out) < max(2, limit // 2) and skw:
+        out.extend(_take_movies_search(tmdb, " ".join(skw[:4]), seen_m, limit - len(out)))
+    return out
+
+
+def _books_from_movie_podcast_shelves(user, seen_b, limit, books_svc):
+    """Reads that rhyme with your screen and earbuds; books you already own sit this one out."""
+    sg, skw = _genres_keywords_from_shelf_types(user, ("movie", "podcast"))
+    if not sg and not skw:
+        return []
+    q = " ".join(sg[:4] + skw[:3]).strip()
+    out = _take_books(books_svc, q or "fiction", seen_b, limit)
+    if len(out) < max(2, limit // 2) and skw:
+        out.extend(_take_books(books_svc, " ".join(skw[:4]), seen_b, limit - len(out)))
+    return out
+
+
+def _podcasts_from_book_movie_shelves(user, seen_p, limit, ln):
+    """Shows that feel like a sequel to your stacks and queues—podcasts on your shelf don’t vote here."""
+    sg, skw = _genres_keywords_from_shelf_types(user, ("book", "movie"))
+    if not sg and not skw:
+        return []
+    ln_map = ln.get_podcast_genre_id_to_name()
+    ln_ids = _ln_ids_for_labels(sg, ln_map)
+    q = " ".join(skw[:5]) if skw else "stories"
+    return _take_podcasts_search(ln, q, seen_p, limit, genre_ids=ln_ids or None)
+
+
 def _interleave(books, movies, pods, limit):
     out = []
     i = j = k = 0
@@ -447,6 +489,12 @@ def build_recommendations_for_user(user, per_row=12, mixed_per_type=6, mixed_tot
     )
     shelf_mixed = _interleave(sb, sm, sp, mixed_total)
 
+    # Cross-media
+    xn = max(6, min(per_row // 2 + 2, 10))
+    cross_movies_from_books_podcasts = _movies_from_book_podcast_shelves(user, seen_m, xn, tmdb)
+    cross_books_from_movies_podcasts = _books_from_movie_podcast_shelves(user, seen_b, xn, books_svc)
+    cross_podcasts_from_books_movies = _podcasts_from_book_movie_shelves(user, seen_p, xn, ln)
+
     # shelf, prefereces, friends combined
     top_genres, keywords = _collect_signals_full(user)
     dq = " ".join(top_genres[:4] + keywords[:3]) if (top_genres or keywords) else "popular fiction"
@@ -483,6 +531,9 @@ def build_recommendations_for_user(user, per_row=12, mixed_per_type=6, mixed_tot
         "preference_podcasts": preference_podcasts,
         "friends_shelf": friends_shelf,
         "shelf_mixed": shelf_mixed,
+        "cross_movies_from_books_podcasts": cross_movies_from_books_podcasts,
+        "cross_books_from_movies_podcasts": cross_books_from_movies_podcasts,
+        "cross_podcasts_from_books_movies": cross_podcasts_from_books_movies,
         "discover_books": discover_books,
         "discover_movies": discover_movies,
         "discover_podcasts": discover_podcasts,
