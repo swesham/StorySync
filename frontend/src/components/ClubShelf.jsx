@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import './MyShelf.css';
 import './ClubShelf.css';
+import ShelfSearch from './ShelfSearch';
 
 const API = '/api/media';
 
@@ -13,6 +14,7 @@ function ClubShelf({ onNavigate, initialClubId = null }) {
   const [currentItem, setCurrentItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [removingItem, setRemovingItem] = useState(false);
 
   const token = () => localStorage.getItem('access_token');
   const auth = () => ({ Authorization: `Bearer ${token()}` });
@@ -131,6 +133,26 @@ function ClubShelf({ onNavigate, initialClubId = null }) {
     }
   };
 
+  const handleRemoveFromClubShelf = async () => {
+    if (!token() || !currentItem?.id || !selectedClubId || !canEditShelf || removingItem) return;
+    setRemovingItem(true);
+    try {
+      const res = await fetch(`${API}/clubs/${selectedClubId}/shelf/${currentItem.id}/`, {
+        method: 'DELETE',
+        headers: auth(),
+      });
+      if (res.ok || res.status === 204) {
+        setCurrentItem(null);
+        refreshShelf();
+        window.dispatchEvent(new Event('shelfUpdated'));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRemovingItem(false);
+    }
+  };
+
   return (
     <div className="ms-root">
       <div className="ms-body">
@@ -168,6 +190,7 @@ function ClubShelf({ onNavigate, initialClubId = null }) {
         </div>
 
         <div className="ms-main">
+          <ShelfSearch />
           <div className="ms-status-tabs">
             {statusConfig.tabs.map((tab) => (
               <button
@@ -241,6 +264,16 @@ function ClubShelf({ onNavigate, initialClubId = null }) {
               ) : (
                 <p className="ms-club-readonly-status">Status: {Object.entries(statusConfig.statusMap).find(([, v]) => v === currentItem.status)?.[0] || currentItem.status}</p>
               )}
+              {canEditShelf ? (
+                <button
+                  type="button"
+                  className="ms-review-post"
+                  onClick={handleRemoveFromClubShelf}
+                  disabled={removingItem}
+                >
+                  {removingItem ? 'Removing...' : 'Remove'}
+                </button>
+              ) : null}
               {selectedMediaType === 'Books' && currentItem.media_type === 'BOOK' && currentItem.media_id && (
                 <a
                   href={`https://www.amazon.com/s?k=${encodeURIComponent(currentItem.media_id)}`}

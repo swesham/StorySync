@@ -318,7 +318,13 @@ function MediaDetail({ item, onClose }) {
         } catch {
           /* ignore */
         }
-        setActionMessage(String(msg));
+        const raw = String(msg || '');
+        const low = raw.toLowerCase();
+        if (res.status === 409 || low.includes('already') || low.includes('exists') || low.includes('duplicate') || low.includes('unique')) {
+          setActionMessage('Already in shelf');
+        } else {
+          setActionMessage(raw);
+        }
       }
     } catch (e) {
       console.error(e);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './MyShelf.css';
+import ShelfSearch from './ShelfSearch';
 
 function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
   const isViewingOther = !!viewUserId;
@@ -14,6 +15,7 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
   const [reviewText, setReviewText] = useState('');
   const [postingReview, setPostingReview] = useState(false);
   const [deletingReview, setDeletingReview] = useState(false);
+  const [removingItem, setRemovingItem] = useState(false);
   const [friendReviews, setFriendReviews] = useState([]);
   const [apiGenres, setApiGenres] = useState([]);
 
@@ -249,6 +251,28 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
     }
   };
 
+  const handleRemoveFromShelf = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token || !currentItem?.id || isViewingOther || removingItem) return;
+    setRemovingItem(true);
+    try {
+      const base = getShelfEndpoint(selectedMediaType);
+      const res = await fetch(`${base}${currentItem.id}/`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok || res.status === 204) {
+        setCurrentItem(null);
+        refreshShelf();
+        window.dispatchEvent(new Event('shelfUpdated'));
+      }
+    } catch (e) {
+      console.error('Failed to remove item', e);
+    } finally {
+      setRemovingItem(false);
+    }
+  };
+
   return (
     <div className="ms-root">
       <div className="ms-body">
@@ -274,6 +298,7 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
         </div>
 
         <div className="ms-main">
+          <ShelfSearch />
           <div className="ms-status-tabs">
             {statusConfig.tabs.map(tab => (
               <button
@@ -350,6 +375,16 @@ function MyShelf({ onNavigate, viewUserId, viewUserDisplayName }) {
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
+              )}
+              {!isViewingOther && (
+                <button
+                  type="button"
+                  className="ms-review-post"
+                  onClick={handleRemoveFromShelf}
+                  disabled={removingItem || postingReview || deletingReview}
+                >
+                  {removingItem ? 'Removing...' : 'Remove'}
+                </button>
               )}
               {selectedMediaType === 'Books' && (currentItem.amazon_url || currentItem.isbn) && (
                 <a href={currentItem.amazon_url || `https://www.amazon.com/s?k=${(currentItem.isbn || '').replace(/-/g, '')}`} target="_blank" rel="noopener noreferrer" className="ms-buy-amazon">
