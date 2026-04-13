@@ -73,7 +73,11 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
       });
       if (response.ok) {
         const data = await response.json();
-        setClubs(data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+        const list = (Array.isArray(data) ? data : []).filter((c) => {
+          const role = String(c?.current_user_role || '').toUpperCase();
+          return role === 'ADMIN' || role === 'MEMBER';
+        });
+        setClubs(list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       }
     } catch (error) {
       console.error('Failed to fetch clubs:', error);
@@ -121,7 +125,13 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
         fetchClubs();
       } else {
         const error = await response.json();
-        setCreateClubMessage(error.error || 'Failed to create club');
+        const msg =
+          (Array.isArray(error.name) && error.name[0]) ||
+          error.name ||
+          error.error ||
+          error.detail ||
+          'Failed to create club';
+        setCreateClubMessage(typeof msg === 'string' ? msg : 'Failed to create club');
       }
     } catch (error) {
       setCreateClubMessage('Failed to create club');
@@ -213,6 +223,16 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
 
       <DashboardChatNotifications onOpenProfile={onOpenProfile} />
 
+      {shelfStats && (
+        <div className="db-section">
+          <span className="db-section-label">Shelf analytics</span>
+          <p className="db-hint">Stats from your shelf</p>
+          <ShelfAnalyticsCharts shelfStats={shelfStats} />
+        </div>
+      )}
+
+      <DashboardContinueChatting onOpenProfile={onOpenProfile} onOpenChat={onOpenChat} />
+
       <div className="db-section">
         <span className="db-section-label">Friends</span>
         <div className="db-friends-area">
@@ -238,16 +258,6 @@ function AdminDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpe
           )}
         </div>
       </div>
-
-      <DashboardContinueChatting onOpenProfile={onOpenProfile} onOpenChat={onOpenChat} />
-
-      {shelfStats && (
-        <div className="db-section">
-          <span className="db-section-label">Shelf analytics</span>
-          <p className="db-hint">Stats from your shelf</p>
-          <ShelfAnalyticsCharts shelfStats={shelfStats} />
-        </div>
-      )}
 
       {showCreateClub && (
         <div className="db-modal-overlay" onClick={() => { setShowCreateClub(false); setCreateClubMessage(''); }}>

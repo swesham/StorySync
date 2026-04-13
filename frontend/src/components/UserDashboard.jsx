@@ -13,7 +13,6 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
   const [shelfPage, setShelfPage] = useState(0);
   const [clubPage, setClubPage] = useState(0);
   const [friendsPage, setFriendsPage] = useState(0);
-  const [joinClubMessage, setJoinClubMessage] = useState('');
 
   const SHELF_PAGE_SIZE = 6;
   const CLUB_PAGE_SIZE = 4;
@@ -68,7 +67,11 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
       });
       if (response.ok) {
         const data = await response.json();
-        setClubs(data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+        const list = (Array.isArray(data) ? data : []).filter((c) => {
+          const role = String(c?.current_user_role || '').toUpperCase();
+          return role === 'ADMIN' || role === 'MEMBER';
+        });
+        setClubs(list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       }
     } catch (error) {
       console.error('Failed to fetch clubs:', error);
@@ -97,26 +100,6 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
       ]);
     } catch (error) {
       console.error('Failed to fetch shelf items:', error);
-    }
-  };
-
-  const handleJoinClub = async (clubId) => {
-    setJoinClubMessage('');
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/media/clubs/${clubId}/join/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      if (response.ok) {
-        setJoinClubMessage('Successfully joined the club.');
-        fetchClubs();
-      } else {
-        const error = await response.json();
-        setJoinClubMessage(error.error || 'Failed to join club');
-      }
-    } catch (error) {
-      setJoinClubMessage('Failed to join club');
     }
   };
 
@@ -174,7 +157,6 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
             <p className="db-hint">Loading...</p>
           ) : visibleClubs.length > 0 ? (
             visibleClubs.map((club) => {
-              const isMember = club.current_user_role === 'ADMIN' || club.current_user_role === 'MEMBER';
               return (
                 <div key={club.id} className="db-club-card">
                   <div className="db-club-card-image">
@@ -186,11 +168,7 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
                     <span className="db-club-name">{club.name}</span>
                     {club.description ? <p className="db-club-desc">{club.description}</p> : null}
                   </div>
-                  {isMember ? (
-                    <button type="button" className="db-join-btn db-club-card-btn" onClick={() => onOpenClubDiscussion?.(club.id)}>Discuss</button>
-                  ) : (
-                    <button type="button" className="db-join-btn db-club-card-btn" onClick={() => handleJoinClub(club.id)}>Join</button>
-                  )}
+                  <button type="button" className="db-join-btn db-club-card-btn" onClick={() => onOpenClubDiscussion?.(club.id)}>Discuss</button>
                 </div>
               );
             })
@@ -204,10 +182,19 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
             {hasMoreClubs && <button type="button" className="db-pagination-btn" onClick={() => setClubPage(p => p + 1)}>Next</button>}
           </div>
         )}
-        {joinClubMessage ? <p className="inline-form-msg">{joinClubMessage}</p> : null}
       </div>
 
       <DashboardChatNotifications onOpenProfile={onOpenProfile} />
+
+      {shelfStats && (
+        <div className="db-section">
+          <span className="db-section-label">Shelf analytics</span>
+          <p className="db-hint">Stats from your shelf</p>
+          <ShelfAnalyticsCharts shelfStats={shelfStats} />
+        </div>
+      )}
+
+      <DashboardContinueChatting onOpenProfile={onOpenProfile} onOpenChat={onOpenChat} />
 
       <div className="db-section">
         <span className="db-section-label">Friends</span>
@@ -234,16 +221,6 @@ function UserDashboard({ onNavigate, onOpenClubDiscussion, onOpenProfile, onOpen
           )}
         </div>
       </div>
-
-      <DashboardContinueChatting onOpenProfile={onOpenProfile} onOpenChat={onOpenChat} />
-
-      {shelfStats && (
-        <div className="db-section">
-          <span className="db-section-label">Shelf analytics</span>
-          <p className="db-hint">Stats from your shelf</p>
-          <ShelfAnalyticsCharts shelfStats={shelfStats} />
-        </div>
-      )}
 
     </div>
   );
