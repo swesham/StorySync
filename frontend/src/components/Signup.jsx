@@ -21,6 +21,15 @@ const GENRE_OPTIONS = [
   'Poetry',
 ];
 
+function passwordMeetsRequirement(pw) {
+  if (!pw || typeof pw !== 'string') return false;
+  if (!/[A-Z]/.test(pw)) return false;
+  if (!/[a-z]/.test(pw)) return false;
+  if (!/\d/.test(pw)) return false;
+  if (!/[^A-Za-z0-9]/.test(pw)) return false;
+  return true;
+}
+
 function Signup() {
   const [step, setStep] = useState('form');
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -64,6 +73,11 @@ function Signup() {
     }
 
     setPasswordMismatch(false);
+
+    if (!passwordMeetsRequirement(formData.password)) {
+      setFormSubmitMessage('Password does not meet requirement.');
+      return;
+    }
 
     const nameParts = formData.fullName.trim().split(/\s+/);
     if (nameParts.length < 2) {

@@ -18,6 +18,19 @@ class ClubSerializer(serializers.ModelSerializer):
     current_user_role = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
 
+    def validate_name(self, value):
+        v = (value or "").strip()
+        if not v:
+            raise serializers.ValidationError("This field may not be blank.")
+        qs = Club.objects.filter(name__iexact=v)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "Club already exists. Try a different name."
+            )
+        return v
+
     class Meta:
         model = Club
         fields = [
