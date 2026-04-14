@@ -1,15 +1,25 @@
+import re
+
 from rest_framework import serializers
-from django.contrib.auth.password_validation import validate_password
 from .models import User
 
 
+def _password_meets_complexity(value):
+    if not value:
+        return False
+    if not re.search(r"[A-Z]", value):
+        return False
+    if not re.search(r"[a-z]", value):
+        return False
+    if not re.search(r"\d", value):
+        return False
+    if not re.search(r"[^A-Za-z0-9]", value):
+        return False
+    return True
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
-   
-    password = serializers.CharField(
-        write_only=True, 
-        required=True, 
-        validators=[validate_password]
-    )
+    password = serializers.CharField(write_only=True, required=True)
     password2 = serializers.CharField(write_only=True, required=True)
     
     class Meta:
@@ -34,6 +44,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if User.objects.filter(username__iexact=v).exists():
             raise serializers.ValidationError("A user with that username already exists.")
         return v
+
+    def validate_password(self, value):
+        if not _password_meets_complexity(value):
+            raise serializers.ValidationError("Password does not meet requirement.")
+        return value
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
