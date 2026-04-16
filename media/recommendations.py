@@ -507,23 +507,9 @@ def build_recommendations_for_user(user, per_row=12, mixed_per_type=6, mixed_tot
             _take_movies_search(tmdb, " ".join(keywords[:3]) if keywords else "adventure", seen_m, per_row - len(discover_movies))
         )
 
-    dln = _ln_ids_for_labels(top_genres, ln_map)
-    discover_podcasts = _take_podcasts_search(
-        ln, " ".join(keywords[:4]) if keywords else "stories", seen_p, per_row, genre_ids=dln or None
-    )
-
     # trending / popular
     popular_books = _take_books(books_svc, "bestseller fiction", seen_b, per_row, order_by="newest")
     popular_movies = _take_movies_discover(tmdb, None, seen_m, per_row)
-
-    best_gid = None
-    if top_genres:
-        lids = _ln_ids_for_labels(top_genres[:5], ln_map)
-        if lids:
-            best_gid = lids[0]
-    popular_podcasts = _take_podcasts_best(ln, best_gid, seen_p, per_row)
-    if len(popular_podcasts) < per_row // 2:
-        popular_podcasts.extend(_take_podcasts_best(ln, None, seen_p, per_row - len(popular_podcasts)))
 
     return {
         "preference_books": preference_books,
@@ -536,10 +522,8 @@ def build_recommendations_for_user(user, per_row=12, mixed_per_type=6, mixed_tot
         "cross_podcasts_from_books_movies": cross_podcasts_from_books_movies,
         "discover_books": discover_books,
         "discover_movies": discover_movies,
-        "discover_podcasts": discover_podcasts,
         "popular_books": popular_books,
         "popular_movies": popular_movies,
-        "popular_podcasts": popular_podcasts,
         "based_on": {
             "interests": interests,
             "top_genres": top_genres[:8],

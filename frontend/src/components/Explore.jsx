@@ -13,13 +13,10 @@ const ROWS = [
   { key: 'shelf_mixed', title: 'From your shelf you might be interested in' },
   {key: 'cross_movies_from_books_podcasts', title: 'Movies that match your books & podcasts'},
   {key: 'cross_books_from_movies_podcasts', title: 'Books that match your movies & podcasts'},
-  {key: 'cross_podcasts_from_books_movies', title: 'Podcasts tuned to your reading & viewing'},
   { key: 'discover_books', title: 'Discover — books from top genres and popular fiction' },
   { key: 'discover_movies', title: 'Discover — movies tuned to your taste' },
-  { key: 'discover_podcasts', title: 'Discover — podcasts tuned to your taste' },
   { key: 'popular_books', title: 'Trending books — bestseller fiction' },
   { key: 'popular_movies', title: 'Popular movies right now' },
-  { key: 'popular_podcasts', title: 'Popular podcasts — Listen Notes picks' },
 ];
 
 function CarouselRow({ title, items, onPick, emptyHint }) {
