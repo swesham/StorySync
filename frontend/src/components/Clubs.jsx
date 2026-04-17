@@ -14,7 +14,7 @@ export default function Clubs({ onOpenClubDiscussion }) {
   const [showCreateClub, setShowCreateClub] = useState(false);
   const [createClubMessage, setCreateClubMessage] = useState('');
   const [joinClubMessage, setJoinClubMessage] = useState('');
-  const [clubForm, setClubForm] = useState({ name: '', media_type: 'all', description: '' });
+  const [clubForm, setClubForm] = useState({ name: '', description: '' });
 
   const isAdmin = sessionStorage.getItem('is_admin') === 'true';
 
@@ -64,12 +64,12 @@ export default function Clubs({ onOpenClubDiscussion }) {
       const res = await fetch('/api/media/clubs/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(clubForm),
+        body: JSON.stringify({ ...clubForm, media_type: 'all' }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowCreateClub(false);
-        setClubForm({ name: '', media_type: 'all', description: '' });
+        setClubForm({ name: '', description: '' });
         await fetchClubs();
       } else {
         setCreateClubMessage(data.error || data.detail || 'Failed to create club');
@@ -170,16 +170,6 @@ export default function Clubs({ onOpenClubDiscussion }) {
                 value={clubForm.name}
                 onChange={(e) => setClubForm({ ...clubForm, name: e.target.value })}
               />
-              <select
-                className="db-input"
-                value={clubForm.media_type}
-                onChange={(e) => setClubForm({ ...clubForm, media_type: e.target.value })}
-              >
-                <option value="all">All Media</option>
-                <option value="books">Books</option>
-                <option value="movies">Movies</option>
-                <option value="podcasts">Podcasts</option>
-              </select>
               <textarea
                 className="db-input"
                 placeholder="Description (optional)"

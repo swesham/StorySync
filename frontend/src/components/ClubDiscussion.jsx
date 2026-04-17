@@ -44,6 +44,11 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
   const [pageMessage, setPageMessage] = useState('');
   const [postModalMessage, setPostModalMessage] = useState('');
   const [pollModalMessage, setPollModalMessage] = useState('');
+  const [editingPost, setEditingPost] = useState(false);
+  const [editCaptionDraft, setEditCaptionDraft] = useState('');
+  const [confirmDeletePost, setConfirmDeletePost] = useState(false);
+  const [confirmDeleteClub, setConfirmDeleteClub] = useState(false);
+  const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState(null);
 
   const token = () => localStorage.getItem('access_token');
   const auth = () => ({ Authorization: `Bearer ${token()}` });
@@ -215,7 +220,6 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
   };
 
   const handleDeletePost = async (postId) => {
-    if (!confirm('Delete this post?')) return;
     setPageMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/posts/${postId}/`, {
@@ -338,7 +342,6 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
   };
 
   const handleDeleteComment = async (commentId) => {
-    if (!confirm('Delete this comment?')) return;
     setPageMessage('');
     try {
       const res = await fetch(
@@ -354,7 +357,6 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
   };
 
   const handleDeleteClub = async () => {
-    if (!confirm('Delete this club and everything in it (posts, polls, shelf, comments)? This cannot be undone.')) return;
     setPageMessage('');
     try {
       const res = await fetch(`${API}/clubs/${clubId}/`, { method: 'DELETE', headers: auth() });
@@ -423,16 +425,73 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
                 <button type="button" className="cd-btn cd-btn-add" onClick={() => { setPostModalMessage(''); setShowAddPost(true); }}>Add Post</button>
                 {mainPost && (
                   <>
-                    <button type="button" className="cd-link" onClick={() => {
-                      const c = prompt('Caption', mainPost.caption);
-                      if (c != null) handleUpdatePost(mainPost.id, c, mainPost.shelf_item?.id);
-                    }}>Edit</button>
-                    <button type="button" className="cd-link" onClick={() => handleDeletePost(mainPost.id)}>Delete</button>
+                    <button
+                      type="button"
+                      className="cd-link cd-link-dark"
+                      onClick={() => {
+                        setConfirmDeletePost(false);
+                        setEditCaptionDraft(mainPost.caption || '');
+                        setEditingPost((prev) => !prev);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="cd-link cd-link-dark"
+                      onClick={() => {
+                        setEditingPost(false);
+                        setConfirmDeletePost((prev) => !prev);
+                      }}
+                    >
+                      Delete
+                    </button>
                   </>
                 )}
               </>
             )}
           </div>
+          {isClubAdmin && mainPost && editingPost && (
+            <form
+              className="cd-inline-panel"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdatePost(mainPost.id, editCaptionDraft, mainPost.shelf_item?.id);
+                setEditingPost(false);
+              }}
+            >
+              <label htmlFor="cd-edit-caption" className="cd-inline-label">Change caption</label>
+              <textarea
+                id="cd-edit-caption"
+                className="cd-input"
+                rows={3}
+                value={editCaptionDraft}
+                onChange={(e) => setEditCaptionDraft(e.target.value)}
+              />
+              <div className="cd-inline-actions">
+                <button type="button" className="cd-btn cd-btn-secondary" onClick={() => setEditingPost(false)}>Cancel</button>
+                <button type="submit" className="cd-btn cd-btn-primary">Save</button>
+              </div>
+            </form>
+          )}
+          {isClubAdmin && mainPost && confirmDeletePost && (
+            <div className="cd-inline-panel">
+              <p className="cd-inline-label">Delete this post?</p>
+              <div className="cd-inline-actions">
+                <button type="button" className="cd-btn cd-btn-secondary" onClick={() => setConfirmDeletePost(false)}>Cancel</button>
+                <button
+                  type="button"
+                  className="cd-btn cd-btn-danger"
+                  onClick={() => {
+                    handleDeletePost(mainPost.id);
+                    setConfirmDeletePost(false);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          )}
           <div className="cd-caption">
             <span className="cd-caption-label">Caption</span>
             <p className="cd-caption-text">{mainPost?.caption || '—'}</p>
@@ -511,7 +570,25 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
                   <span className="cd-comment-text">{c.text}</span>
                   <span className="cd-comment-date">{new Date(c.created_at).toLocaleString()}</span>
                   {isClubAdmin && (
-                    <button type="button" className="cd-link cd-comment-delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>
+                    <>
+                      {confirmDeleteCommentId === c.id ? (
+                        <span className="cd-comment-delete-confirm">
+                          <button type="button" className="cd-link cd-link-dark cd-comment-delete" onClick={() => setConfirmDeleteCommentId(null)}>Cancel</button>
+                          <button
+                            type="button"
+                            className="cd-link cd-btn-danger-link cd-comment-delete"
+                            onClick={() => {
+                              handleDeleteComment(c.id);
+                              setConfirmDeleteCommentId(null);
+                            }}
+                          >
+                            Confirm delete
+                          </button>
+                        </span>
+                      ) : (
+                        <button type="button" className="cd-link cd-comment-delete" onClick={() => setConfirmDeleteCommentId(c.id)}>Delete</button>
+                      )}
+                    </>
                   )}
                 </li>
               ))}
@@ -525,11 +602,33 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
           <p className="cd-hint">Add a post above to start the discussion.</p>
         )}
         {isClubAdmin && (
-          <button type="button" className="cd-delete-club-btn" onClick={handleDeleteClub}>
+          <button type="button" className="cd-delete-club-btn" onClick={() => setConfirmDeleteClub(true)}>
             Delete club
           </button>
         )}
       </section>
+
+      {confirmDeleteClub && (
+        <div className="cd-modal-overlay" onClick={() => setConfirmDeleteClub(false)}>
+          <div className="cd-modal" onClick={e => e.stopPropagation()}>
+            <h3>Delete club?</h3>
+            <p className="cd-hint">This removes the club and all posts, polls, shelf items, and comments. This cannot be undone.</p>
+            <div className="cd-modal-actions">
+              <button type="button" onClick={() => setConfirmDeleteClub(false)}>Cancel</button>
+              <button
+                type="button"
+                className="cd-btn-danger"
+                onClick={() => {
+                  setConfirmDeleteClub(false);
+                  handleDeleteClub();
+                }}
+              >
+                Delete club
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddPost && (
         <div className="cd-modal-overlay" onClick={() => { setShowAddPost(false); setPostModalMessage(''); }}>
