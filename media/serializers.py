@@ -17,6 +17,7 @@ class ClubSerializer(serializers.ModelSerializer):
     created_by = serializers.CharField(source="created_by.username", read_only=True)
     current_user_role = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
 
     def validate_name(self, value):
         v = (value or "").strip()
@@ -41,6 +42,7 @@ class ClubSerializer(serializers.ModelSerializer):
             "is_private",
             "current_user_role",
             "cover_image_url",
+            "member_count",
             "created_at",
             "updated_at",
         ]
@@ -65,6 +67,9 @@ class ClubSerializer(serializers.ModelSerializer):
         from .models import ClubMember
         m = ClubMember.objects.filter(club=obj, user=request.user).first()
         return m.role if m else None
+
+    def get_member_count(self, obj):
+        return obj.memberships.count()
 
 
 class BookShelfItemSerializer(serializers.ModelSerializer):

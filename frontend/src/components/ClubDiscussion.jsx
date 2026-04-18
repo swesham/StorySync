@@ -602,9 +602,14 @@ function ClubDiscussion({ clubId, onNavigate, onOpenProfile, onViewClubShelf, is
           <p className="cd-hint">Add a post above to start the discussion.</p>
         )}
         {isClubAdmin && (
-          <button type="button" className="cd-delete-club-btn" onClick={() => setConfirmDeleteClub(true)}>
-            Delete club
-          </button>
+          <div className="cd-club-footer-actions">
+            <button type="button" className="cd-delete-club-btn" onClick={() => setConfirmDeleteClub(true)}>
+              Delete club
+            </button>
+            <span className="cd-member-count-badge">
+              {club?.member_count ?? 0} joined
+            </span>
+          </div>
         )}
       </section>
 
