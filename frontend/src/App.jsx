@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import MyShelf from './components/MyShelf';
-import SearchFilter from './components/SearchFilter';
 import Explore from './components/Explore';
 import LandingPage from './components/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 import ClubDiscussion from './components/ClubDiscussion';
 import ClubShelf from './components/ClubShelf';
+import Clubs from './components/Clubs';
 import Profile from './components/Profile';
 import EditPreferences from './components/EditPreferences';
 import Chat from './components/Chat';
@@ -219,11 +219,6 @@ function App() {
   };
 
   const openClubShelf = (clubId) => {
-    if (!isAdmin) {
-      setClubShelfInitialId(null);
-      setCurrentView('userdashboard');
-      return;
-    }
     setClubShelfInitialId(clubId ?? null);
     setCurrentView('clubshelf');
   };
@@ -269,7 +264,7 @@ function App() {
           clubId={clubDiscussionId}
           onNavigate={handleNavigate}
           onOpenProfile={openProfile}
-          onViewClubShelf={isAdmin ? openClubShelf : null}
+          onViewClubShelf={openClubShelf}
           isAppAdmin={isAdmin}
           backToView={isAdmin ? 'dashboard' : 'userdashboard'}
         />
@@ -295,10 +290,10 @@ function App() {
     }
     if (currentView === 'myshelf') return <MyShelf onNavigate={handleNavigate} viewUserId={viewShelfUserId} viewUserDisplayName={viewShelfDisplayName} />;
     if (currentView === 'clubshelf') {
-      if (!isAdmin) return dashboard;
       return <ClubShelf onNavigate={handleNavigate} initialClubId={clubShelfInitialId} />;
     }
-    if (currentView === 'search') return <SearchFilter onNavigate={handleNavigate} />;
+    if (currentView === 'clubs') return <Clubs onOpenClubDiscussion={openClubDiscussion} />;
+    if (currentView === 'search') return <MyShelf onNavigate={handleNavigate} viewUserId={viewShelfUserId} viewUserDisplayName={viewShelfDisplayName} />;
     if (currentView === 'explore') return <Explore />;
     return dashboard;
   };
@@ -324,11 +319,9 @@ function App() {
             <nav className="main-nav">
               <button className={`main-navlink ${(currentView === 'dashboard' || currentView === 'userdashboard') ? 'active' : ''}`} onClick={() => handleNavigate(isAdmin ? 'dashboard' : 'userdashboard')}>Home</button>
               <button className={`main-navlink ${currentView === 'myshelf' ? 'active' : ''}`} onClick={() => handleNavigate('myshelf')}>Shelf</button>
-              <button className={`main-navlink ${currentView === 'search' ? 'active' : ''}`} onClick={() => handleNavigate('search')}>Search</button>
+              <button className={`main-navlink ${currentView === 'clubshelf' ? 'active' : ''}`} onClick={() => handleNavigate('clubshelf')}>Club Shelf</button>
+              <button className={`main-navlink ${currentView === 'clubs' ? 'active' : ''}`} onClick={() => handleNavigate('clubs')}>Clubs</button>
               <button className={`main-navlink ${currentView === 'explore' ? 'active' : ''}`} onClick={() => handleNavigate('explore')}>Explore</button>
-              {isAdmin ? (
-                <button className={`main-navlink ${currentView === 'clubshelf' ? 'active' : ''}`} onClick={() => handleNavigate('clubshelf')}>Club</button>
-              ) : null}
             </nav>
             <button className="main-logout" onClick={() => handleNavigate('logout')}>Logout</button>
           </div>

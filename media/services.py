@@ -288,5 +288,10 @@ class ListenNotesService:
                 data["results"] = []
             return data
         except requests.exceptions.RequestException as e:
-            print(f"ListenNotes API Error: {e}")
+            # Handle rate limit specifically
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 429:
+                    print("ListenNotes API rate limit exceeded. Please wait before retrying.")
+                    return {"results": []}
+            print(f"ListenNotes search Error: {e}")
             return {"results": []}

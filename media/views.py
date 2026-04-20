@@ -1,12 +1,10 @@
 from django.conf import settings
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-
 from rest_framework import status, permissions, generics, views
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
-
 from users.models import Friendship
 from .recommendations import build_recommendations_for_user
 from .services import GoogleBooksService, TMDbService, ListenNotesService
@@ -176,7 +174,6 @@ def personalized_recommendations(request):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def cloudinary_config(request):
-    """Cloudinary config for client uploads."""
     cloud_name = getattr(settings, 'CLOUDINARY_CLOUD_NAME', '') or ''
     upload_preset = getattr(settings, 'CLOUDINARY_UPLOAD_PRESET', '') or ''
     return Response({
@@ -387,7 +384,7 @@ def unified_search(request):
         if search_type in ('all', 'podcast'):
             add_podcast_results()
 
-        # Books can work without a key; movies/podcasts need keys or you only see books.
+        
         hints = []
         if not getattr(settings, "TMDB_API_KEY", None) and search_type in ("all", "movie"):
             hints.append(
@@ -644,7 +641,7 @@ class ClubShelfItemListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         club = self.get_club()
-        self._ensure_admin(club)
+        self._ensure_member(club)
         return ClubShelfItem.objects.filter(club=club)
 
     def perform_create(self, serializer):
@@ -667,8 +664,8 @@ class ClubShelfItemDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
         membership = ClubMember.objects.filter(user=self.request.user, club=club).first()
-        if not (getattr(self.request.user, "is_staff", False) or getattr(self.request.user, "is_superuser", False)) and (membership is None or membership.role != ClubMember.Role.ADMIN):
-            raise PermissionDenied("Only club admins can access the club shelf.")
+        if not (getattr(self.request.user, "is_staff", False) or getattr(self.request.user, "is_superuser", False)) and membership is None:
+            raise PermissionDenied("You are not a member of this club.")
 
         if self.request.method in ("PUT", "PATCH", "DELETE"):
             if not (getattr(self.request.user, "is_staff", False) or getattr(self.request.user, "is_superuser", False)) and (membership is None or membership.role != ClubMember.Role.ADMIN):

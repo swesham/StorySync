@@ -3,7 +3,7 @@ from django.db import models
 
 
 class Club(models.Model):
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=150, unique=True)
     description = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -17,6 +17,7 @@ class Club(models.Model):
 
     class Meta:
         ordering = ["name"]
+        unique_together = [("created_by", "name")]
 
     def __str__(self):
         return self.name
@@ -301,6 +302,10 @@ class PodcastShelfItem(models.Model):
     class Meta:
         unique_together = ("user", "listen_notes_id")
         ordering = ["-updated_at"]
+
+    def clean(self):
+        if not self.genres or len(self.genres) == 0:
+            raise ValidationError("At least one genre must be specified for podcasts.")
 
     def __str__(self):
         return f"{self.user} - {self.title} ({self.status})"

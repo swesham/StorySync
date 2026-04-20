@@ -351,6 +351,31 @@
   background: #111;
 }
 
+.cd-club-footer-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cd-club-footer-actions .cd-delete-club-btn {
+  margin-top: 0;
+}
+
+.cd-member-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 29px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  background: #111;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .cd-input {
   width: 100%;
   padding: 0.5rem;
